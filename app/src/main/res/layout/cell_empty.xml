@@ -4,4 +4,4 @@
     android:layout_width="10dp"
     android:layout_height="10dp"
     android:layout_margin="1dp"
-    android:background="@drawable/circle_with_border" />
+    />
