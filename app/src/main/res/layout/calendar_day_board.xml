@@ -5,5 +5,4 @@
     android:columnCount="7"
     android:rowCount="6"
     android:id="@+id/calendar_days_layout">
-
 </GridLayout>

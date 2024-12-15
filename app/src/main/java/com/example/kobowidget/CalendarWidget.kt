@@ -5,20 +5,29 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
+import android.database.sqlite.SQLiteDatabase
 import android.media.Image
+import android.net.Uri
 import android.util.Log
 import android.widget.GridLayout
 import android.widget.ImageView
 import android.widget.RemoteViews
 import android.widget.TextView
+import androidx.core.content.contentValuesOf
+import java.io.File
+import java.io.FileOutputStream
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.util.Calendar
+import kotlin.math.exp
 
 /**
  * Implementation of App Widget functionality.
  */
 class CalendarWidget : AppWidgetProvider() {
+
+    private lateinit var StatisticsHandler: KoReadingStatisticsDBHandler
+
     override fun onUpdate(
         context: Context,
         appWidgetManager: AppWidgetManager,
@@ -34,33 +43,25 @@ class CalendarWidget : AppWidgetProvider() {
 //        for (appWidgetId in appWidgetIds) {
 //            updateAppWidget(context, appWidgetManager, appWidgetId)
 //        }
+
+        val sharedPreferences = context.getSharedPreferences("calendar_preference", Context.MODE_PRIVATE)
+        val koReadingStatisticsDBPath = sharedPreferences.getString("reading_statistics_db_path", null)
+
+        if (koReadingStatisticsDBPath != null) {
+            try {
+                StatisticsHandler = KoReadingStatisticsDBHandler(context, Uri.parse(koReadingStatisticsDBPath))
+            } catch (e: Exception){
+                println("Error accessing Koreader Statistics DB file ${koReadingStatisticsDBPath}: ${e.message}")
+            }
+        }
+
         for (appWidgetId in appWidgetIds) {
             // Update the widget layout
             val views = RemoteViews(context.packageName, R.layout.calendar_widget)
             drawDayCells(context, views)
 
-//
-//            // Add days to the grid
-//            var day = 1
-//            for (row in 0..5) { // 6 rows max
-//                for (col in 0..6) { // 7 columns
-//                    if (row == 0 && col < firstDayOfWeek - 1) {
-//                        // Fill empty spaces before the first day of the month
-//                        val emptyView = TextView(context)
-//                        emptyView.text = ""
-//                        gridLayout.addView(emptyView)
-//                    } else if (day <= totalDays) {
-//                        // Add the date to the grid
-//                        val dayView = TextView(context)
-//                        dayView.text = "$day"
-//                        gridLayout.addView(dayView)
-//                        day++
-//                    }
-//                }
-//            }
-
             // Set a click listener for the widget
-//            views.setOnClickPendingIntent(R.id.widgetLayout, pendingIntent)
+            views.setOnClickPendingIntent(R.id.calendar_days_layout, pendingIntent)
 
             // Update the widget
             appWidgetManager.updateAppWidget(appWidgetId, views)
@@ -106,28 +107,17 @@ fun drawDayCells(
     var cellEmpty = getById(context, R.layout.cell_empty)
     // set the background the image view in cellDay to be null
 
-    firstDayOfWeekInCurrentMonth = DayOfWeek.WEDNESDAY
-    Log.d("Calendar", "$firstDayOfMonth, $totalDaysOfMonth,  $firstDayOfWeekInCurrentMonth, ${firstDayOfWeekInCurrentMonth.value}")
-
     // Add days to the grid based on the first day of the month
     var day = 0
     for (row in 0 until 6){
         for (column in 0 until 7) {
-            if (row == 0 && column < firstDayOfWeekInCurrentMonth.value) {
+            if (row == 0 && column < (firstDayOfWeekInCurrentMonth.value % 7)) {
                 // Fill empty spaces before the first day of the month
                 calendarDayBoard.addView(R.id.calendar_days_layout, cellEmpty)
-                // not adding up days
-                continue
             } else if (day < totalDaysOfMonth) {
-                // Add the date to the grid
-                cellDay.setInt(
-                    R.id.cell_day,
-                    "setBackgroundResource",
-                    R.drawable.circle_with_border
-                )
                 calendarDayBoard.addView(R.id.calendar_days_layout, cellDay)
+                day += 1
             }
-            day += 1
         }
     }
 

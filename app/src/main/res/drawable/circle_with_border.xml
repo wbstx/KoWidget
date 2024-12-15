@@ -4,11 +4,35 @@
     android:height="30dp"
     android:viewportWidth="160"
     android:viewportHeight="160">
+
+<!--    <path-->
+<!--        android:strokeColor="#222222"-->
+<!--        android:strokeWidth="4"-->
+<!--        android:pathData="-->
+<!--            M 0 80-->
+<!--            C 0 12, 12 0, 80 0-->
+<!--            S 160 12, 160 80, 148 160-->
+<!--              80 160, 0 148, 0 80" />-->
+
+<!--    <path-->
+<!--        android:strokeColor="#eeeeee"-->
+<!--        android:strokeWidth="4"-->
+<!--        android:pathData="-->
+<!--        M 0 70-->
+<!--        C 0 17.5, 17.5 0, 70 0-->
+<!--        S 140 17.5, 140 70, 122.5 140-->
+<!--        70 140, 0 122.5, 0 70" />-->
+
     <path
+        android:strokeColor="#222222"
+        android:strokeWidth="1"
         android:fillColor="#222222"
         android:pathData="
-            M 0 80
-            C 0 12.000000000000002, 12.000000000000002 0, 80 0
-            S 160 12.000000000000002, 160 80, 148 160
-              80 160, 0 148, 0 80" />
+        M 10 80
+        C 10 20, 20 10, 80 10
+        S 150 20, 150 80, 140 150
+        80 150, 10 140, 10 80" />
+
 </vector>
+
+    <!--        android:fillColor="#222222"-->

@@ -1,6 +1,7 @@
 package com.example.kobowidget
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.database.sqlite.SQLiteDatabase
 import android.net.Uri
@@ -27,6 +28,7 @@ class MainActivity : AppCompatActivity() {
     private val OPEN_DOCUMENT_REQUEST_CODE = 100
 
     private lateinit var statisticsDataset: SQLiteDatabase
+    private var koReadingStatisticsDBPath: Uri? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,6 +51,11 @@ class MainActivity : AppCompatActivity() {
             val currentTimestamp = System.currentTimeMillis() / 1000
             if (::statisticsDataset.isInitialized) getBooksFromPeriod(calculateCurrentMonthStartTimestamps(), currentTimestamp)
             if (::statisticsDataset.isInitialized) getDaysFromPeriod(calculateCurrentMonthStartTimestamps(), currentTimestamp)
+
+            val sharedPreferences = getSharedPreferences("calendar_preference", Context.MODE_PRIVATE)
+            val editor = sharedPreferences.edit()
+            editor.putString("reading_statistics_db_path", koReadingStatisticsDBPath.toString())
+            editor.apply()
         }
     }
 
@@ -88,8 +95,21 @@ class MainActivity : AppCompatActivity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == OPEN_DOCUMENT_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
             data?.data?.let { uri ->
+                koReadingStatisticsDBPath = uri
+                persistDBAccessPermission(uri)
                 readSQLiteDatabase(uri)
             }
+        }
+    }
+
+    private fun persistDBAccessPermission(uri: Uri) {
+        try {
+            val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+            contentResolver.takePersistableUriPermission(uri, takeFlags)
+            println("Persistable URI Permission taken successfully")
+        } catch (e: SecurityException) {
+            e.printStackTrace()
+            println("Error taking persistable URI permission: ${e.message}")
         }
     }
 
@@ -200,7 +220,7 @@ class MainActivity : AppCompatActivity() {
                     val durations = cursor.getLong(cursor.getColumnIndexOrThrow("durations"))
                     val startTime = cursor.getLong(cursor.getColumnIndexOrThrow("start_time"))
 
-                    Log.d("SQL Result", "Date: $date, Pages: $pages, Durations: $durations, StartTime: $startTime")
+                    Log.d("Calendar", "Date: $date, Pages: $pages, Durations: $durations, StartTime: $startTime")
                 }
             } finally {
                 cursor.close()
