@@ -40,20 +40,20 @@ class CalendarWidget : AppWidgetProvider() {
         val sharedPreferences = context.getSharedPreferences("calendar_preference", Context.MODE_PRIVATE)
         val koReadingStatisticsDBPath = sharedPreferences.getString("reading_statistics_db_path", null)
 
-        if (koReadingStatisticsDBPath != null) {
+        var dayStats: MutableList<DayStat>? = null
+        koReadingStatisticsDBPath.let{
             try {
                 statisticsHandler = KoReadingStatisticsDBHandler(context, Uri.parse(koReadingStatisticsDBPath))
+                dayStats = statisticsHandler?.getThisMonthDayStats()
             } catch (e: Exception){
                 println("Error accessing Koreader Statistics DB file ${koReadingStatisticsDBPath}: ${e.message}")
             }
         }
 
-        val dayStats = statisticsHandler?.getThisMonthDayStats()
-
         for (appWidgetId in appWidgetIds) {
             // Update the widget layout
             val views = RemoteViews(context.packageName, R.layout.calendar_widget)
-            drawDayCells(context, views, dayStats!!)
+            if (dayStats != null) drawDayCells(context, views, dayStats!!)
 
             // Set a click listener for the widget
             views.setOnClickPendingIntent(R.id.calendar_days_layout, pendingIntent)
@@ -90,7 +90,7 @@ class CalendarWidget : AppWidgetProvider() {
 
         // Get the first day of the month and number of days in the month
         val firstDayOfMonth = currentDate.withDayOfMonth(1)
-        var firstDayOfWeekInCurrentMonth: DayOfWeek = firstDayOfMonth.dayOfWeek
+        val firstDayOfWeekInCurrentMonth: DayOfWeek = firstDayOfMonth.dayOfWeek
         val totalDaysOfMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH) // Get total number of days
 
         // Set the month title
@@ -102,7 +102,7 @@ class CalendarWidget : AppWidgetProvider() {
         val cellDayFull = getById(context, R.layout.cell_day_full)
         val cellDayHalf = getById(context, R.layout.cell_day_half)
         val cellDayEmpty = getById(context, R.layout.cell_empty)
-        var cellDayFuture = getById(context, R.layout.cell_day_future)
+        val cellDayFuture = getById(context, R.layout.cell_day_future)
 
         // set the background the image view in cellDay to be null
 

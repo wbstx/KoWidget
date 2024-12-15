@@ -7,20 +7,15 @@ import android.util.Log
 import java.io.File
 import java.io.FileOutputStream
 import java.util.Calendar
-import java.util.Date
 
 class KoReadingStatisticsDBHandler (
-    context: Context,
+    private var context: Context,
     dbPath: Uri
 ) {
-    private lateinit var context: Context
     private lateinit var statisticsDataset: SQLiteDatabase
 
     init {
-        this.context = context
         readSQLiteDatabase(dbPath)
-
-
     }
 
     fun getThisMonthDayStats(): MutableList<DayStat>? {
@@ -53,7 +48,7 @@ class KoReadingStatisticsDBHandler (
         }
     }
 
-    private fun retrieveBooksFromPeriod(timestamp_start: Long, timestamp_end: Long){
+    private fun retrieveBooksFromPeriod(timestampStart: Long, timestampEnd: Long){
         val sql = """
             SELECT  book_tbl.title AS title,
                     count(distinct page_stat_tbl.page) AS read_pages,
@@ -65,10 +60,10 @@ class KoReadingStatisticsDBHandler (
             ORDER   BY book_tbl.last_open DESC;
         """.trimIndent()
 
-        val cursor = statisticsDataset.rawQuery(sql, arrayOf(timestamp_start.toString(), timestamp_end.toString()))
+        val cursor = statisticsDataset.rawQuery(sql, arrayOf(timestampStart.toString(), timestampEnd.toString()))
 
         cursor.let {
-            try {
+            cursor.use { cursor ->
                 while (cursor.moveToNext()) {
                     val title = cursor.getString(cursor.getColumnIndexOrThrow("title"))
                     val distinctPages = cursor.getInt(cursor.getColumnIndexOrThrow("read_pages"))
@@ -77,13 +72,11 @@ class KoReadingStatisticsDBHandler (
 
                     Log.d("Calendar","Title: $title, Distinct Pages: $distinctPages, Total Duration: $totalDuration, Book ID: $bookId")
                 }
-            } finally {
-                cursor.close()
             }
         }
     }
 
-    private fun retrieveDaysFromPeriod(timestamp_start: Long, timestamp_end: Long): MutableList<DayStat> {
+    private fun retrieveDaysFromPeriod(timestampStart: Long, timestampEnd: Long): MutableList<DayStat> {
         val sql = """
             SELECT dates,
                    count(*)             AS pages,
@@ -101,11 +94,11 @@ class KoReadingStatisticsDBHandler (
             ORDER  BY dates DESC;
         """.trimIndent()
 
-        val cursor = statisticsDataset.rawQuery(sql, arrayOf(timestamp_start.toString(), timestamp_end.toString()))
+        val cursor = statisticsDataset.rawQuery(sql, arrayOf(timestampStart.toString(), timestampEnd.toString()))
 
         val dayStats: MutableList<DayStat> = mutableListOf()
         cursor.let {
-            try {
+            cursor.use { cursor ->
                 while (cursor.moveToNext()) {
                     val date = cursor.getString(cursor.getColumnIndexOrThrow("dates"))
                     val pages = cursor.getInt(cursor.getColumnIndexOrThrow("pages"))
@@ -115,10 +108,8 @@ class KoReadingStatisticsDBHandler (
                     dayStats += DayStat(date, pages, durations, startTime)
                     Log.d("Calendar", "Date: $date, Pages: $pages, Durations: $durations, StartTime: $startTime")
                 }
-            } finally {
-                dayStats.sortBy { it.date }
-                cursor.close()
             }
+            dayStats.sortBy { it.date }
         }
         return dayStats
     }

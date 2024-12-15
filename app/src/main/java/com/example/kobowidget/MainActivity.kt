@@ -14,7 +14,6 @@ import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
 import android.view.Menu
 import android.view.MenuItem
-import androidx.activity.result.contract.ActivityResultContracts
 import com.example.kobowidget.databinding.ActivityMainBinding
 import java.io.File
 import java.io.FileOutputStream
