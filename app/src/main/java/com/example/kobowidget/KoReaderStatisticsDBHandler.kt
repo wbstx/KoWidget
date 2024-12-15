@@ -7,6 +7,7 @@ import android.util.Log
 import java.io.File
 import java.io.FileOutputStream
 import java.util.Calendar
+import java.util.Date
 
 class KoReadingStatisticsDBHandler (
     context: Context,
@@ -19,9 +20,15 @@ class KoReadingStatisticsDBHandler (
         this.context = context
         readSQLiteDatabase(dbPath)
 
-        val currentTimestamp = System.currentTimeMillis() / 1000
-        if (::statisticsDataset.isInitialized) getDaysFromPeriod(calculateCurrentMonthStartTimestamps(), currentTimestamp)
 
+    }
+
+    fun getThisMonthDayStats(): MutableList<DayStat>? {
+        if (::statisticsDataset.isInitialized) {
+            val currentTimestamp = System.currentTimeMillis() / 1000
+            return retrieveDaysFromPeriod(calculateCurrentMonthStartTimestamps(), currentTimestamp)
+        }
+        else return null
     }
 
     private fun readSQLiteDatabase(uri: Uri) {
@@ -46,7 +53,7 @@ class KoReadingStatisticsDBHandler (
         }
     }
 
-    private fun getBooksFromPeriod(timestamp_start: Long, timestamp_end: Long){
+    private fun retrieveBooksFromPeriod(timestamp_start: Long, timestamp_end: Long){
         val sql = """
             SELECT  book_tbl.title AS title,
                     count(distinct page_stat_tbl.page) AS read_pages,
@@ -76,7 +83,7 @@ class KoReadingStatisticsDBHandler (
         }
     }
 
-    private fun getDaysFromPeriod(timestamp_start: Long, timestamp_end: Long){
+    private fun retrieveDaysFromPeriod(timestamp_start: Long, timestamp_end: Long): MutableList<DayStat> {
         val sql = """
             SELECT dates,
                    count(*)             AS pages,
@@ -96,6 +103,7 @@ class KoReadingStatisticsDBHandler (
 
         val cursor = statisticsDataset.rawQuery(sql, arrayOf(timestamp_start.toString(), timestamp_end.toString()))
 
+        val dayStats: MutableList<DayStat> = mutableListOf()
         cursor.let {
             try {
                 while (cursor.moveToNext()) {
@@ -104,15 +112,18 @@ class KoReadingStatisticsDBHandler (
                     val durations = cursor.getLong(cursor.getColumnIndexOrThrow("durations"))
                     val startTime = cursor.getLong(cursor.getColumnIndexOrThrow("start_time"))
 
+                    dayStats += DayStat(date, pages, durations, startTime)
                     Log.d("Calendar", "Date: $date, Pages: $pages, Durations: $durations, StartTime: $startTime")
                 }
             } finally {
+                dayStats.sortBy { it.date }
                 cursor.close()
             }
         }
+        return dayStats
     }
 
-    fun getTodayBootStats(){
+    private fun retrieveTodayBootStats(){
         val sql = """
                 SELECT count(*),
                        sum(sum_duration)
@@ -163,4 +174,11 @@ class KoReadingStatisticsDBHandler (
 
         return startOfMonthTimestamp
     }
+
+    data class DayStat(
+        val date: String,
+        val pages: Int,
+        val durations: Long,
+        val startTime: Long
+    )
 }

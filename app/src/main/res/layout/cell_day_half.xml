@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ImageView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/cell_day"
+    android:layout_width="10dp"
+    android:layout_height="10dp"
+    android:layout_margin="1dp"
+    android:background="@drawable/circle_with_border"
+    android:backgroundTint="#888888"
+    />

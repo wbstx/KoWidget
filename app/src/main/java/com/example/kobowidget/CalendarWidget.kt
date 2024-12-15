@@ -5,28 +5,21 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
-import android.database.sqlite.SQLiteDatabase
-import android.media.Image
 import android.net.Uri
 import android.util.Log
-import android.widget.GridLayout
-import android.widget.ImageView
 import android.widget.RemoteViews
-import android.widget.TextView
-import androidx.core.content.contentValuesOf
-import java.io.File
-import java.io.FileOutputStream
+import com.example.kobowidget.KoReadingStatisticsDBHandler.DayStat
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.util.Calendar
-import kotlin.math.exp
 
 /**
  * Implementation of App Widget functionality.
  */
 class CalendarWidget : AppWidgetProvider() {
 
-    private lateinit var StatisticsHandler: KoReadingStatisticsDBHandler
+    private var statisticsHandler: KoReadingStatisticsDBHandler? = null
+    private var targetReadingSeconds: Long = 3600
 
     override fun onUpdate(
         context: Context,
@@ -49,16 +42,18 @@ class CalendarWidget : AppWidgetProvider() {
 
         if (koReadingStatisticsDBPath != null) {
             try {
-                StatisticsHandler = KoReadingStatisticsDBHandler(context, Uri.parse(koReadingStatisticsDBPath))
+                statisticsHandler = KoReadingStatisticsDBHandler(context, Uri.parse(koReadingStatisticsDBPath))
             } catch (e: Exception){
                 println("Error accessing Koreader Statistics DB file ${koReadingStatisticsDBPath}: ${e.message}")
             }
         }
 
+        val dayStats = statisticsHandler?.getThisMonthDayStats()
+
         for (appWidgetId in appWidgetIds) {
             // Update the widget layout
             val views = RemoteViews(context.packageName, R.layout.calendar_widget)
-            drawDayCells(context, views)
+            drawDayCells(context, views, dayStats!!)
 
             // Set a click listener for the widget
             views.setOnClickPendingIntent(R.id.calendar_days_layout, pendingIntent)
@@ -75,53 +70,67 @@ class CalendarWidget : AppWidgetProvider() {
     override fun onDisabled(context: Context) {
         // Enter relevant functionality for when the last widget is disabled
     }
-}
 
-fun getById(
-    context: Context,
-    layoutId: Int
-) = RemoteViews(context.packageName, layoutId)
+    fun getById(
+        context: Context,
+        layoutId: Int
+    ) = RemoteViews(context.packageName, layoutId)
 
-fun drawDayCells(
-    context: Context,
-    widgetViews: RemoteViews
-) {
-    val currentDate = LocalDate.now()
-    val calendar = Calendar.getInstance()
-    val currentMonth = calendar.get(Calendar.MONTH)
-    val currentYear = calendar.get(Calendar.YEAR)
+    fun drawDayCells(
+        context: Context,
+        widgetViews: RemoteViews,
+        dayStats: MutableList<DayStat>
+    ) {
+        val currentDate = LocalDate.now()
+        val calendar = Calendar.getInstance()
+        val currentMonth = calendar.get(Calendar.MONTH)
+        val currentYear = calendar.get(Calendar.YEAR)
 
-    val monthTitle = "${currentYear}年${currentMonth + 1}月"
+        val monthTitle = "${currentYear}年${currentMonth + 1}月"
 
-    // Get the first day of the month and number of days in the month
-    val firstDayOfMonth = currentDate.withDayOfMonth(1)
-    var firstDayOfWeekInCurrentMonth: DayOfWeek = firstDayOfMonth.dayOfWeek
-    val totalDaysOfMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH) // Get total number of days
+        // Get the first day of the month and number of days in the month
+        val firstDayOfMonth = currentDate.withDayOfMonth(1)
+        var firstDayOfWeekInCurrentMonth: DayOfWeek = firstDayOfMonth.dayOfWeek
+        val totalDaysOfMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH) // Get total number of days
 
-    // Set the month title
-    widgetViews.setTextViewText(R.id.monthTitle, monthTitle)
-    // Clear existing grid
-    val calendarDayBoard = getById(context, R.layout.calendar_day_board)
-    calendarDayBoard.removeAllViews(R.id.calendar_days_layout)
-    var cellDay = getById(context, R.layout.cell_day)
-    var cellEmpty = getById(context, R.layout.cell_empty)
-    // set the background the image view in cellDay to be null
+        // Set the month title
+        widgetViews.setTextViewText(R.id.monthTitle, monthTitle)
+        // Clear existing grid
+        val calendarDayBoard = getById(context, R.layout.calendar_day_board)
+        calendarDayBoard.removeAllViews(R.id.calendar_days_layout)
 
-    // Add days to the grid based on the first day of the month
-    var day = 0
-    for (row in 0 until 6){
-        for (column in 0 until 7) {
-            if (row == 0 && column < (firstDayOfWeekInCurrentMonth.value % 7)) {
-                // Fill empty spaces before the first day of the month
-                calendarDayBoard.addView(R.id.calendar_days_layout, cellEmpty)
-            } else if (day < totalDaysOfMonth) {
-                calendarDayBoard.addView(R.id.calendar_days_layout, cellDay)
-                day += 1
+        val cellDayFull = getById(context, R.layout.cell_day_full)
+        val cellDayHalf = getById(context, R.layout.cell_day_half)
+        val cellDayEmpty = getById(context, R.layout.cell_empty)
+        var cellDayFuture = getById(context, R.layout.cell_day_future)
+
+        // set the background the image view in cellDay to be null
+
+        // Add days to the grid based on the first day of the month
+        var day = 0
+        for (row in 0 until 6){
+            for (column in 0 until 7) {
+                if (row == 0 && column < (firstDayOfWeekInCurrentMonth.value % 7)) {
+                    // Fill empty spaces before the first day of the month
+                    calendarDayBoard.addView(R.id.calendar_days_layout, cellDayEmpty)
+                } else if (day < totalDaysOfMonth) {
+                    if (day < dayStats.size) {
+                        Log.d("Calendar", "date: ${dayStats[day].date} duration: ${dayStats[day].durations}")
+                        if (dayStats[day].durations > targetReadingSeconds)
+                            calendarDayBoard.addView(R.id.calendar_days_layout, cellDayFull)
+                        else if (dayStats[day].durations < targetReadingSeconds)
+                            calendarDayBoard.addView(R.id.calendar_days_layout, cellDayHalf)
+                    }
+                    else {
+                        calendarDayBoard.addView(R.id.calendar_days_layout, cellDayFuture)
+                    }
+                    day += 1
+                }
             }
         }
-    }
 
-    widgetViews.addView(R.id.calendar_frame, calendarDayBoard)
+        widgetViews.addView(R.id.calendar_frame, calendarDayBoard)
+    }
 }
 
 internal fun updateAppWidget(
