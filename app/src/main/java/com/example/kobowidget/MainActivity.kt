@@ -55,6 +55,11 @@ class MainActivity : AppCompatActivity() {
             val editor = sharedPreferences.edit()
             editor.putString("reading_statistics_db_path", koReadingStatisticsDBPath.toString())
             editor.apply()
+
+            val intent = Intent(this, CalendarWidget::class.java).apply {
+                action = CalendarWidget.ACTION_UPDATE_CALENDAR
+            }
+            sendBroadcast(intent)
         }
     }
 
@@ -97,6 +102,7 @@ class MainActivity : AppCompatActivity() {
                 koReadingStatisticsDBPath = uri
                 persistDBAccessPermission(uri)
                 readSQLiteDatabase(uri)
+                Log.d("calendar", "db path $uri")
             }
         }
     }

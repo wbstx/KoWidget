@@ -3,6 +3,7 @@ package com.example.kobowidget
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -18,6 +19,10 @@ import java.util.Calendar
  */
 class CalendarWidget : AppWidgetProvider() {
 
+    companion object{
+        const val ACTION_UPDATE_CALENDAR = "com.example.kobowidget.UPDATE_CALENDAR"
+    }
+
     private var statisticsHandler: KoReadingStatisticsDBHandler? = null
     private var targetReadingSeconds: Long = 3600
 
@@ -28,14 +33,39 @@ class CalendarWidget : AppWidgetProvider() {
     ) {
         super.onUpdate(context, appWidgetManager, appWidgetIds)
 
-        // Create an intent for the widget to open when clicked
-        val intent = Intent(context, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+        // There may be multiple widgets active, so update all of them
+        for (appWidgetId in appWidgetIds) {
+            // Update the widget layout
+            val views = RemoteViews(context.packageName, R.layout.calendar_widget)
+            updateCalendar(context, views)
 
-//        // There may be multiple widgets active, so update all of them
-//        for (appWidgetId in appWidgetIds) {
-//            updateAppWidget(context, appWidgetManager, appWidgetId)
-//        }
+        }
+    }
+
+    override fun onEnabled(context: Context) {
+        // Enter relevant functionality for when the first widget is created
+    }
+
+    override fun onDisabled(context: Context) {
+        // Enter relevant functionality for when the last widget is disabled
+    }
+
+    override fun onReceive(context: Context, intent: Intent) {
+        super.onReceive(context, intent)
+
+        if (intent.action == ACTION_UPDATE_CALENDAR) {
+            Log.d("Calendar", "onReceive update calendar")
+            val views = RemoteViews(context.packageName, R.layout.calendar_widget)
+            updateCalendar(context, views)
+        }
+    }
+
+    private fun updateCalendar(
+        context: Context,
+        widgetViews: RemoteViews
+    ) {
+        val appWidgetManager = AppWidgetManager.getInstance(context)
+        val componentName = ComponentName(context, CalendarWidget::class.java)
 
         val sharedPreferences = context.getSharedPreferences("calendar_preference", Context.MODE_PRIVATE)
         val koReadingStatisticsDBPath = sharedPreferences.getString("reading_statistics_db_path", null)
@@ -49,26 +79,15 @@ class CalendarWidget : AppWidgetProvider() {
                 println("Error accessing Koreader Statistics DB file ${koReadingStatisticsDBPath}: ${e.message}")
             }
         }
+        if (dayStats != null) drawDayCells(context, widgetViews, dayStats!!)
 
-        for (appWidgetId in appWidgetIds) {
-            // Update the widget layout
-            val views = RemoteViews(context.packageName, R.layout.calendar_widget)
-            if (dayStats != null) drawDayCells(context, views, dayStats!!)
-
-            // Set a click listener for the widget
-            views.setOnClickPendingIntent(R.id.calendar_days_layout, pendingIntent)
-
-            // Update the widget
-            appWidgetManager.updateAppWidget(appWidgetId, views)
-        }
-    }
-
-    override fun onEnabled(context: Context) {
-        // Enter relevant functionality for when the first widget is created
-    }
-
-    override fun onDisabled(context: Context) {
-        // Enter relevant functionality for when the last widget is disabled
+        // Create an intent for the widget to open when clicked
+        val intent = Intent(context, MainActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+        // Set a click listener for the widget
+        widgetViews.setOnClickPendingIntent(R.id.calendar_days_layout, pendingIntent)
+        // Update the widget
+        appWidgetManager.updateAppWidget(componentName, widgetViews)
     }
 
     fun getById(
@@ -115,7 +134,6 @@ class CalendarWidget : AppWidgetProvider() {
                     calendarDayBoard.addView(R.id.calendar_days_layout, cellDayEmpty)
                 } else if (day < totalDaysOfMonth) {
                     if (day < dayStats.size) {
-                        Log.d("Calendar", "date: ${dayStats[day].date} duration: ${dayStats[day].durations}")
                         if (dayStats[day].durations > targetReadingSeconds)
                             calendarDayBoard.addView(R.id.calendar_days_layout, cellDayFull)
                         else if (dayStats[day].durations < targetReadingSeconds)
@@ -129,7 +147,9 @@ class CalendarWidget : AppWidgetProvider() {
             }
         }
 
-        widgetViews.addView(R.id.calendar_frame, calendarDayBoard)
+        // Clear the calendar board before adding
+        widgetViews.removeAllViews(R.id.calendar_board)
+        widgetViews.addView(R.id.calendar_board, calendarDayBoard)
     }
 }
 
