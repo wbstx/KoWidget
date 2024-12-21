@@ -48,7 +48,7 @@ class KoReadingStatisticsDBHandler (
         }
     }
 
-    private fun retrieveBooksFromPeriod(timestampStart: Long, timestampEnd: Long){
+    fun retrieveBooksFromPeriod(timestampStart: Long, timestampEnd: Long){
         val sql = """
             SELECT  book_tbl.title AS title,
                     count(distinct page_stat_tbl.page) AS read_pages,
@@ -76,7 +76,7 @@ class KoReadingStatisticsDBHandler (
         }
     }
 
-    private fun retrieveDaysFromPeriod(timestampStart: Long, timestampEnd: Long): MutableList<DayStat> {
+    fun retrieveDaysFromPeriod(timestampStart: Long, timestampEnd: Long): MutableList<DayStat>? {
         val sql = """
             SELECT dates,
                    count(*)             AS pages,
@@ -106,15 +106,34 @@ class KoReadingStatisticsDBHandler (
                     val startTime = cursor.getLong(cursor.getColumnIndexOrThrow("start_time"))
 
                     dayStats += DayStat(date, pages, durations, startTime)
-                    Log.d("Calendar", "Date: $date, Pages: $pages, Durations: $durations, StartTime: $startTime")
                 }
             }
+
             dayStats.sortBy { it.date }
+
+            val completeDayStats: MutableList<DayStat> = mutableListOf()
+            for (i in dayStats.indices) {
+                if (i > 0) {
+                    val previousDate = dayStats[i - 1].date.takeLast(2).toInt()
+                    val currentDate = dayStats[i].date.takeLast(2).toInt()
+
+                    var missingDate = previousDate + 1
+                    while (missingDate < currentDate) {
+                        val newDate = dayStats[i - 1].date.dropLast(2) + String.format("%02d", missingDate)
+                        Log.d("Calendar", "Date ${newDate}, Pages: 0, Durations: 0, StartTime: -1")
+                        completeDayStats.add(DayStat(newDate, 0, 0, -1))
+                        missingDate++
+                    }
+                }
+                Log.d("Calendar", "Date ${dayStats[i].date}, Pages: ${dayStats[i].pages}, Durations: ${dayStats[i].durations}, StartTime: ${dayStats[i].startTime}")
+                completeDayStats.add(dayStats[i])
+            }
+            return completeDayStats
         }
-        return dayStats
+        return null
     }
 
-    private fun retrieveTodayBootStats(){
+    fun retrieveTodayBootStats(){
         val sql = """
                 SELECT count(*),
                        sum(sum_duration)
@@ -141,7 +160,7 @@ class KoReadingStatisticsDBHandler (
         }
     }
 
-    private fun calculateStartOfDayTimestamp(): Long {
+    fun calculateStartOfDayTimestamp(): Long {
         val nowStamp = System.currentTimeMillis() / 1000
         val calendar = Calendar.getInstance()
         val nowHour = calendar.get(Calendar.HOUR_OF_DAY)
@@ -154,7 +173,7 @@ class KoReadingStatisticsDBHandler (
         return startTodayTime
     }
 
-    private fun calculateCurrentMonthStartTimestamps(): Long {
+    fun calculateCurrentMonthStartTimestamps(): Long {
         val calendar = Calendar.getInstance()
         calendar.set(Calendar.DAY_OF_MONTH, 1)
         calendar.set(Calendar.HOUR_OF_DAY, 0)

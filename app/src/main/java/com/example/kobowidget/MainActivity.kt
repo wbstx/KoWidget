@@ -48,8 +48,9 @@ class MainActivity : AppCompatActivity() {
 //                .setAction("Action", null)
 //                .setAnchorView(R.id.fab).show()
             val currentTimestamp = System.currentTimeMillis() / 1000
-            if (::statisticsDataset.isInitialized) getBooksFromPeriod(calculateCurrentMonthStartTimestamps(), currentTimestamp)
-            if (::statisticsDataset.isInitialized) getDaysFromPeriod(calculateCurrentMonthStartTimestamps(), currentTimestamp)
+            var statisticsHandler = KoReadingStatisticsDBHandler(this, koReadingStatisticsDBPath!!)
+            if (::statisticsDataset.isInitialized) statisticsHandler.retrieveBooksFromPeriod(calculateCurrentMonthStartTimestamps(), currentTimestamp)
+            if (::statisticsDataset.isInitialized) statisticsHandler.retrieveDaysFromPeriod(calculateCurrentMonthStartTimestamps(), currentTimestamp)
 
             val sharedPreferences = getSharedPreferences("calendar_preference", Context.MODE_PRIVATE)
             val editor = sharedPreferences.edit()
