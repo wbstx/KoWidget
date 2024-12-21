@@ -4,7 +4,7 @@
     android:initialKeyguardLayout="@layout/calendar_widget"
     android:initialLayout="@layout/calendar_widget"
     android:minWidth="150dp"
-    android:minHeight="150dp"
+    android:minHeight="60dp"
     android:previewImage="@drawable/example_appwidget_preview"
     android:previewLayout="@layout/calendar_widget"
     android:resizeMode="horizontal|vertical"

@@ -121,7 +121,7 @@ class CalendarWidget : AppWidgetProvider() {
         val cellDayFull = getById(context, R.layout.cell_day_full)
         val cellDayHalf = getById(context, R.layout.cell_day_half)
         val cellDayEmpty = getById(context, R.layout.cell_empty)
-        val cellDayFuture = getById(context, R.layout.cell_day_future)
+        val cellDayNoReadOrFuture = getById(context, R.layout.cell_day_future)
 
         // set the background the image view in cellDay to be null
 
@@ -134,13 +134,15 @@ class CalendarWidget : AppWidgetProvider() {
                     calendarDayBoard.addView(R.id.calendar_days_layout, cellDayEmpty)
                 } else if (day < totalDaysOfMonth) {
                     if (day < dayStats.size) {
-                        if (dayStats[day].durations > targetReadingSeconds)
+                        if (dayStats[day].durations.toInt() == 0)
+                            calendarDayBoard.addView(R.id.calendar_days_layout, cellDayNoReadOrFuture)
+                        else if (dayStats[day].durations > targetReadingSeconds)
                             calendarDayBoard.addView(R.id.calendar_days_layout, cellDayFull)
                         else if (dayStats[day].durations < targetReadingSeconds)
                             calendarDayBoard.addView(R.id.calendar_days_layout, cellDayHalf)
                     }
                     else {
-                        calendarDayBoard.addView(R.id.calendar_days_layout, cellDayFuture)
+                        calendarDayBoard.addView(R.id.calendar_days_layout, cellDayNoReadOrFuture)
                     }
                     day += 1
                 }
@@ -149,6 +151,8 @@ class CalendarWidget : AppWidgetProvider() {
 
         // Clear the calendar board before adding
         widgetViews.removeAllViews(R.id.calendar_board)
+        val weekHead = getById(context, R.layout.calendar_week_head)
+        widgetViews.addView(R.id.calendar_board, weekHead)
         widgetViews.addView(R.id.calendar_board, calendarDayBoard)
     }
 }
