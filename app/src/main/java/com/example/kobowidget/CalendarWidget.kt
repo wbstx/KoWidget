@@ -36,7 +36,7 @@ class CalendarWidget : AppWidgetProvider() {
         // There may be multiple widgets active, so update all of them
         for (appWidgetId in appWidgetIds) {
             // Update the widget layout
-            val views = RemoteViews(context.packageName, R.layout.calendar_widget)
+            val views = RemoteViews(context.packageName, R.layout.widget_calendar)
             updateCalendar(context, views)
 
         }
@@ -55,7 +55,7 @@ class CalendarWidget : AppWidgetProvider() {
 
         if (intent.action == ACTION_UPDATE_CALENDAR) {
             Log.d("Calendar", "onReceive update calendar")
-            val views = RemoteViews(context.packageName, R.layout.calendar_widget)
+            val views = RemoteViews(context.packageName, R.layout.widget_calendar)
             updateCalendar(context, views)
         }
     }
@@ -69,6 +69,7 @@ class CalendarWidget : AppWidgetProvider() {
 
         val sharedPreferences = context.getSharedPreferences("calendar_preference", Context.MODE_PRIVATE)
         val koReadingStatisticsDBPath = sharedPreferences.getString("reading_statistics_db_path", null)
+        Log.d("calendar widget", "$koReadingStatisticsDBPath")
 
         var dayStats: MutableList<DayStat>? = null
         koReadingStatisticsDBPath.let{
@@ -115,13 +116,13 @@ class CalendarWidget : AppWidgetProvider() {
         // Set the month title
         widgetViews.setTextViewText(R.id.monthTitle, monthTitle)
         // Clear existing grid
-        val calendarDayBoard = getById(context, R.layout.calendar_day_board)
+        val calendarDayBoard = getById(context, R.layout.widget_component_calendar_day_board)
         calendarDayBoard.removeAllViews(R.id.calendar_days_layout)
 
-        val cellDayFull = getById(context, R.layout.cell_day_full)
-        val cellDayHalf = getById(context, R.layout.cell_day_half)
-        val cellDayEmpty = getById(context, R.layout.cell_empty)
-        val cellDayNoReadOrFuture = getById(context, R.layout.cell_day_future)
+        val cellDayFull = getById(context, R.layout.cell_calendar_day_full)
+        val cellDayHalf = getById(context, R.layout.cell_calendar_day_half)
+        val cellDayEmpty = getById(context, R.layout.cell_calendar_day_empty)
+        val cellDayNoReadOrFuture = getById(context, R.layout.cell_calendar_day_future)
 
         // set the background the image view in cellDay to be null
 
@@ -151,7 +152,7 @@ class CalendarWidget : AppWidgetProvider() {
 
         // Clear the calendar board before adding
         widgetViews.removeAllViews(R.id.calendar_board)
-        val weekHead = getById(context, R.layout.calendar_week_head)
+        val weekHead = getById(context, R.layout.widget_component_calendar_week_head)
         widgetViews.addView(R.id.calendar_board, weekHead)
         widgetViews.addView(R.id.calendar_board, calendarDayBoard)
     }
@@ -164,10 +165,10 @@ internal fun updateAppWidget(
 ) {
     val widgetText = context.getString(R.string.appwidget_text)
     // Construct the RemoteViews object
-    val views = RemoteViews(context.packageName, R.layout.calendar_widget)
+    val views = RemoteViews(context.packageName, R.layout.widget_calendar)
 //    views.setTextViewText(R.id.appwidget_text, widgetText)
 
-    val childRemoteViews = RemoteViews(context.packageName, R.layout.calendar_day_board)
+    val childRemoteViews = RemoteViews(context.packageName, R.layout.widget_component_calendar_day_board)
     views.addView(R.id.calendar_days_layout, childRemoteViews)
 
     // Instruct the widget manager to update the widget

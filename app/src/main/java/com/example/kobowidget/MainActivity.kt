@@ -4,8 +4,10 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.database.sqlite.SQLiteDatabase
+import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Bundle
+import android.provider.DocumentsContract
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.findNavController
@@ -14,6 +16,10 @@ import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
 import android.view.Menu
 import android.view.MenuItem
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import androidx.documentfile.provider.DocumentFile
 import com.example.kobowidget.databinding.ActivityMainBinding
 import java.io.File
 import java.io.FileOutputStream
@@ -24,10 +30,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var appBarConfiguration: AppBarConfiguration
     private lateinit var binding: ActivityMainBinding
 
-    private val OPEN_DOCUMENT_REQUEST_CODE = 100
+    private lateinit var openDocumentTreeLauncher: ActivityResultLauncher<Intent>
 
     private lateinit var statisticsDataset: SQLiteDatabase
-    private var koReadingStatisticsDBPath: Uri? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,32 +40,97 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        setSupportActionBar(binding.toolbar)
+//        setSupportActionBar(binding.toolbar)
 
-        val navController = findNavController(R.id.nav_host_fragment_content_main)
-        appBarConfiguration = AppBarConfiguration(navController.graph)
-        setupActionBarWithNavController(navController, appBarConfiguration)
+//        val navController = findNavController(R.id.nav_host_fragment_content_main)
+//        appBarConfiguration = AppBarConfiguration(navController.graph)
+//        setupActionBarWithNavController(navController, appBarConfiguration)
 
-        findKoreaderDB()
-
-        binding.fab.setOnClickListener { view ->
-//            Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-//                .setAction("Action", null)
-//                .setAnchorView(R.id.fab).show()
-            val currentTimestamp = System.currentTimeMillis() / 1000
-            var statisticsHandler = KoReadingStatisticsDBHandler(this, koReadingStatisticsDBPath!!)
-            if (::statisticsDataset.isInitialized) statisticsHandler.retrieveBooksFromPeriod(calculateCurrentMonthStartTimestamps(), currentTimestamp)
-            if (::statisticsDataset.isInitialized) statisticsHandler.retrieveDaysFromPeriod(calculateCurrentMonthStartTimestamps(), currentTimestamp)
-
-            val sharedPreferences = getSharedPreferences("calendar_preference", Context.MODE_PRIVATE)
-            val editor = sharedPreferences.edit()
-            editor.putString("reading_statistics_db_path", koReadingStatisticsDBPath.toString())
-            editor.apply()
-
-            val intent = Intent(this, CalendarWidget::class.java).apply {
-                action = CalendarWidget.ACTION_UPDATE_CALENDAR
+        val generalPreferences = getSharedPreferences("general_preference", Context.MODE_PRIVATE)
+        val koreaderUriString = generalPreferences.getString("koreader_path", null)
+        koreaderUriString?.let {
+            val koreaderUri = Uri.parse(koreaderUriString)
+            val koReadingStatisticsDBPath = getStatisticsPath(koreaderUri)
+            Log.d("calendar","onCreate called $koReadingStatisticsDBPath")
+            if (koReadingStatisticsDBPath != null){
+                val drawable: Drawable? = ContextCompat.getDrawable(this, R.drawable.ic_check)
+                Log.d("calendar", "Binding: ${binding.icDbPathState}")
+                binding.icDbPathState.setImageDrawable(drawable)
+                Log.d("calendar","drawable set $koReadingStatisticsDBPath")
             }
-            sendBroadcast(intent)
+            else{
+                val drawable: Drawable? = ContextCompat.getDrawable(this, R.drawable.ic_cross)
+                binding.icDbPathState.setImageDrawable(drawable)
+            }
+            binding.settingGeneralDbPathContent.text = convertReadablePath(this, koreaderUri)
+        }
+
+        setOptionsListener(binding)
+
+//        binding.fab.setOnClickListener { view ->
+////            Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
+////                .setAction("Action", null)
+////                .setAnchorView(R.id.fab).show()
+//            val currentTimestamp = System.currentTimeMillis() / 1000
+//            var statisticsHandler = KoReadingStatisticsDBHandler(this, koReadingStatisticsDBPath!!)
+//            if (::statisticsDataset.isInitialized) statisticsHandler.retrieveBooksFromPeriod(statisticsHandler.calculateCurrentMonthStartTimestamps(), currentTimestamp)
+//            if (::statisticsDataset.isInitialized) statisticsHandler.retrieveDaysFromPeriod(statisticsHandler.calculateCurrentMonthStartTimestamps(), currentTimestamp)
+//
+//            val sharedPreferences = getSharedPreferences("calendar_preference", Context.MODE_PRIVATE)
+//            val editor = sharedPreferences.edit()
+//            editor.putString("reading_statistics_db_path", koReadingStatisticsDBPath.toString())
+//            editor.apply()
+//
+//            val intent = Intent(this, CalendarWidget::class.java).apply {
+//                action = CalendarWidget.ACTION_UPDATE_CALENDAR
+//            }
+//            sendBroadcast(intent)
+//        }
+    }
+
+    private fun setOptionsListener(binding: ActivityMainBinding) {
+        /////////////////////////
+        // General
+        /////////////////////////
+        openDocumentTreeLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                result.data?.data?.let { uri ->
+//                    koReaderPath = uri
+                    persistAccessPermission(uri)
+
+                    val koReadingStatisticsDBPath = getStatisticsPath(uri)
+                    if (koReadingStatisticsDBPath != null){
+                        // Save the koreader statistics db path into the preference
+                        val sharedPreferences = getSharedPreferences("calendar_preference", Context.MODE_PRIVATE)
+                        val editor = sharedPreferences.edit()
+                        editor.putString("reading_statistics_db_path", koReadingStatisticsDBPath.toString())
+                        editor.apply()
+
+                        val drawable: Drawable? = ContextCompat.getDrawable(this, R.drawable.ic_check)
+                        binding.icDbPathState.setImageDrawable(drawable)
+                    }
+                    else{
+                        val drawable: Drawable? = ContextCompat.getDrawable(this, R.drawable.ic_cross)
+                        binding.icDbPathState.setImageDrawable(drawable)
+                    }
+
+                    binding.settingGeneralDbPathContent.text = convertReadablePath(this, uri!!)
+                }
+            }
+        }
+
+        binding.settingGeneralDbPath.setOnClickListener{ view ->
+//            val currentTimestamp = System.currentTimeMillis() / 1000
+//            var statisticsHandler = KoReadingStatisticsDBHandler(this, koReadingStatisticsDBPath!!)
+//            if (::statisticsDataset.isInitialized) statisticsHandler.retrieveBooksFromPeriod(statisticsHandler.calculateCurrentMonthStartTimestamps(), currentTimestamp)
+//            if (::statisticsDataset.isInitialized) statisticsHandler.retrieveDaysFromPeriod(statisticsHandler.calculateCurrentMonthStartTimestamps(), currentTimestamp)
+
+            findKoreaderDB()
+
+//            val intent = Intent(this, CalendarWidget::class.java).apply {
+//                action = CalendarWidget.ACTION_UPDATE_CALENDAR
+//            }
+//            sendBroadcast(intent)
         }
     }
 
@@ -86,176 +156,66 @@ class MainActivity : AppCompatActivity() {
                 || super.onSupportNavigateUp()
     }
 
-
     private fun findKoreaderDB() {
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            type = "application/octet-stream"
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
         }
-        startActivityForResult(intent, OPEN_DOCUMENT_REQUEST_CODE)
+        openDocumentTreeLauncher.launch(intent)
     }
 
-    @Deprecated("Deprecated in Java")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == OPEN_DOCUMENT_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
-            data?.data?.let { uri ->
-                koReadingStatisticsDBPath = uri
-                persistDBAccessPermission(uri)
-                readSQLiteDatabase(uri)
-                Log.d("calendar", "db path $uri")
+    fun getFileUriInFolder(folderUri: Uri?, filePath: String): Uri? {
+        folderUri?.let {
+            val treeDocumentId = DocumentsContract.getTreeDocumentId(folderUri)
+            val targetDocumentId = "$treeDocumentId/$filePath"
+            return DocumentsContract.buildDocumentUriUsingTree(folderUri, targetDocumentId)
+        }
+        return null
+    }
+
+    fun getStatisticsPath(koreaderPath: Uri): Uri? {
+        if (koreaderPath != null) {
+            val statisticsRelativePath = getFileUriInFolder(koreaderPath, "settings/statistics.sqlite3")
+            val documentFile = DocumentFile.fromSingleUri(this, statisticsRelativePath!!)
+            if (documentFile != null && documentFile.exists()) {
+                Log.d("DocumentFile", "File exists: ${documentFile.name}")
+                return statisticsRelativePath
+            } else {
+                Log.e("DocumentFile", "File not found: $statisticsRelativePath")
+                return null
             }
         }
+        return null
     }
 
-    private fun persistDBAccessPermission(uri: Uri) {
+    // Get the persistent permission to the db file
+    private fun persistAccessPermission(uri: Uri) {
         try {
             val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION
             contentResolver.takePersistableUriPermission(uri, takeFlags)
             println("Persistable URI Permission taken successfully")
+
+            val sharedPreferences = getSharedPreferences("general_preference", Context.MODE_PRIVATE)
+            sharedPreferences.edit().putString("koreader_path", uri.toString()).apply()
+
         } catch (e: SecurityException) {
             e.printStackTrace()
             println("Error taking persistable URI permission: ${e.message}")
         }
     }
 
-    private fun readSQLiteDatabase(uri: Uri) {
-        try {
-            val inputStream = contentResolver.openInputStream(uri)
-            val cacheDir = cacheDir
-            val tempFile = File(cacheDir, "temp_database.sqlite")
-            inputStream?.use { input ->
-                FileOutputStream(tempFile).use { output ->
-                    input.copyTo(output)
-                }
-            }
+    fun convertReadablePath(context: Context, uri: Uri): String? {
+        if ("com.android.externalstorage.documents" == uri.authority) {
+            val docId = DocumentsContract.getTreeDocumentId(uri) // 获取 Document ID
+            val split = docId.split(":")
+            val type = split[0]
+            val relativePath = split.getOrNull(1) ?: ""
 
-            statisticsDataset = SQLiteDatabase.openDatabase(
-                tempFile.path,
-                null,
-                SQLiteDatabase.OPEN_READONLY
-            )
-
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    fun getTodayBootStats(){
-        val sql = """
-                SELECT count(*),
-                       sum(sum_duration)
-                FROM   (
-                           SELECT sum(duration) AS sum_duration
-                           FROM   page_stat
-                           WHERE  start_time >= ?
-                           GROUP  BY id_book, page
-                       );
-            """.trimIndent()
-
-        val startTime = calculateStartOfDayTimestamp()
-        val cursor = statisticsDataset.rawQuery(sql, arrayOf(startTime.toString()))
-
-        if (cursor.moveToFirst()) {
-            val count = cursor.getInt(0)  // 获取 count(*)
-            val totalDuration = cursor.getLong(1)  // 获取 sum(sum_duration)
-            cursor.close()
-
-            Log.d("Calendar","Count: $count")
-            Log.d("Calendar","Total Duration: $totalDuration")
-        } else {
-            Log.d("Calendar","No data found for the given start_time.")
-        }
-    }
-
-    private fun getBooksFromPeriod(timestamp_start: Long, timestamp_end: Long){
-        val sql = """
-            SELECT  book_tbl.title AS title,
-                    count(distinct page_stat_tbl.page) AS read_pages,
-                    sum(page_stat_tbl.duration) AS total_duration,
-                    book_tbl.id
-            FROM    page_stat AS page_stat_tbl, book AS book_tbl
-            WHERE   page_stat_tbl.id_book=book_tbl.id AND page_stat_tbl.start_time BETWEEN ? AND ?
-            GROUP   BY book_tbl.id
-            ORDER   BY book_tbl.last_open DESC;
-        """.trimIndent()
-
-        val cursor = statisticsDataset.rawQuery(sql, arrayOf(timestamp_start.toString(), timestamp_end.toString()))
-
-        cursor.let {
-            try {
-                while (cursor.moveToNext()) {
-                    val title = cursor.getString(cursor.getColumnIndexOrThrow("title"))
-                    val distinctPages = cursor.getInt(cursor.getColumnIndexOrThrow("read_pages"))
-                    val totalDuration = cursor.getLong(cursor.getColumnIndexOrThrow("total_duration"))
-                    val bookId = cursor.getLong(cursor.getColumnIndexOrThrow("id"))
-
-                    Log.d("Calendar","Title: $title, Distinct Pages: $distinctPages, Total Duration: $totalDuration, Book ID: $bookId")
-                }
-            } finally {
-                cursor.close()
+            return if ("primary" == type) {
+                "/sdcard/$relativePath"
+            } else {
+                "/storage/$type/$relativePath"
             }
         }
-    }
-
-    private fun getDaysFromPeriod(timestamp_start: Long, timestamp_end: Long){
-        val sql = """
-            SELECT dates,
-                   count(*)             AS pages,
-                   sum(sum_duration)    AS durations,
-                   start_time
-            FROM   (
-                        SELECT strftime('%Y-%m-%d', start_time, 'unixepoch', 'localtime') AS dates,
-                               sum(duration)                                                 AS sum_duration,
-                               start_time
-                        FROM   page_stat
-                        WHERE  start_time BETWEEN ? AND ?
-                        GROUP  BY id_book, page, dates
-                   )
-            GROUP  BY dates
-            ORDER  BY dates DESC;
-        """.trimIndent()
-
-        val cursor = statisticsDataset.rawQuery(sql, arrayOf(timestamp_start.toString(), timestamp_end.toString()))
-
-        cursor.let {
-            try {
-                while (cursor.moveToNext()) {
-                    val date = cursor.getString(cursor.getColumnIndexOrThrow("dates"))
-                    val pages = cursor.getInt(cursor.getColumnIndexOrThrow("pages"))
-                    val durations = cursor.getLong(cursor.getColumnIndexOrThrow("durations"))
-                    val startTime = cursor.getLong(cursor.getColumnIndexOrThrow("start_time"))
-
-                    Log.d("Calendar", "Date: $date, Pages: $pages, Durations: $durations, StartTime: $startTime")
-                }
-            } finally {
-                cursor.close()
-            }
-        }
-    }
-
-    private fun calculateStartOfDayTimestamp(): Long {
-        val nowStamp = System.currentTimeMillis() / 1000
-        val calendar = Calendar.getInstance()
-        val nowHour = calendar.get(Calendar.HOUR_OF_DAY)
-        val nowMinute = calendar.get(Calendar.MINUTE)
-        val nowSecond = calendar.get(Calendar.SECOND)
-
-        val fromBeginDay = nowHour * 3600 + nowMinute * 60 + nowSecond
-        val startTodayTime = nowStamp - fromBeginDay - 24 * 3600
-
-        return startTodayTime
-    }
-
-    private fun calculateCurrentMonthStartTimestamps(): Long {
-        val calendar = Calendar.getInstance()
-        calendar.set(Calendar.DAY_OF_MONTH, 1)
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-        val startOfMonthTimestamp = calendar.timeInMillis / 1000
-
-        return startOfMonthTimestamp
+        return null
     }
 }

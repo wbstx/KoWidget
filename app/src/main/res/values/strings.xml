@@ -7,6 +7,11 @@
     <string name="next">Next</string>
     <string name="previous">Previous</string>
 
+    <string name="setting_general_db_dir_head"> Koreader Directory</string>
+    <string name="setting_general_db_dir_default"> Please specify the koreader path</string>
+
+    <string name="setting_general_show_calendar"> Show Calendar</string>
+
     <string name="lorem_ipsum">
         Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam in scelerisque sem. Mauris
         volutpat, dolor id interdum ullamcorper, risus dolor egestas lectus, sit amet mattis purus
@@ -46,4 +51,5 @@
     <string name="appwidget_text">EXAMPLE</string>
     <string name="add_widget">Add widget</string>
     <string name="app_widget_description">This is an app widget description</string>
-</resources>
+
+    </resources>
