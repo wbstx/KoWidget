@@ -49,20 +49,7 @@ class MainActivity : AppCompatActivity() {
         val generalPreferences = getSharedPreferences("general_preference", Context.MODE_PRIVATE)
         val koreaderUriString = generalPreferences.getString("koreader_path", null)
         koreaderUriString?.let {
-            val koreaderUri = Uri.parse(koreaderUriString)
-            val koReadingStatisticsDBPath = getStatisticsPath(koreaderUri)
-            Log.d("calendar","onCreate called $koReadingStatisticsDBPath")
-            if (koReadingStatisticsDBPath != null){
-                val drawable: Drawable? = ContextCompat.getDrawable(this, R.drawable.ic_check)
-                Log.d("calendar", "Binding: ${binding.icDbPathState}")
-                binding.icDbPathState.setImageDrawable(drawable)
-                Log.d("calendar","drawable set $koReadingStatisticsDBPath")
-            }
-            else{
-                val drawable: Drawable? = ContextCompat.getDrawable(this, R.drawable.ic_cross)
-                binding.icDbPathState.setImageDrawable(drawable)
-            }
-            binding.settingGeneralDbPathContent.text = convertReadablePath(this, koreaderUri)
+            setDBPathOptionAndIcon(Uri.parse(koreaderUriString))
         }
 
         setOptionsListener(binding)
@@ -98,23 +85,16 @@ class MainActivity : AppCompatActivity() {
 //                    koReaderPath = uri
                     persistAccessPermission(uri)
 
-                    val koReadingStatisticsDBPath = getStatisticsPath(uri)
+                    val koReadingStatisticsDBPath = setDBPathOptionAndIcon(uri)
+                    // save the statistics db path into preference
                     if (koReadingStatisticsDBPath != null){
                         // Save the koreader statistics db path into the preference
                         val sharedPreferences = getSharedPreferences("calendar_preference", Context.MODE_PRIVATE)
                         val editor = sharedPreferences.edit()
                         editor.putString("reading_statistics_db_path", koReadingStatisticsDBPath.toString())
                         editor.apply()
-
-                        val drawable: Drawable? = ContextCompat.getDrawable(this, R.drawable.ic_check)
-                        binding.icDbPathState.setImageDrawable(drawable)
                     }
-                    else{
-                        val drawable: Drawable? = ContextCompat.getDrawable(this, R.drawable.ic_cross)
-                        binding.icDbPathState.setImageDrawable(drawable)
-                    }
-
-                    binding.settingGeneralDbPathContent.text = convertReadablePath(this, uri!!)
+                    binding.settingGeneralDbPathContent.text = convertReadablePath(this, uri)
                 }
             }
         }
@@ -185,6 +165,22 @@ class MainActivity : AppCompatActivity() {
             }
         }
         return null
+    }
+
+    private fun setDBPathOptionAndIcon(koreaderUri: Uri): Uri? {
+        val koReadingStatisticsDBPath = getStatisticsPath(koreaderUri)
+        if (koReadingStatisticsDBPath != null){
+            val drawable: Drawable? = ContextCompat.getDrawable(this, R.drawable.ic_check)
+            Log.d("calendar", "Binding: ${binding.icDbPathState}")
+            binding.icDbPathState.setImageDrawable(drawable)
+            Log.d("calendar","drawable set $koReadingStatisticsDBPath")
+        }
+        else{
+            val drawable: Drawable? = ContextCompat.getDrawable(this, R.drawable.ic_cross)
+            binding.icDbPathState.setImageDrawable(drawable)
+        }
+        binding.settingGeneralDbPathContent.text = convertReadablePath(this, koreaderUri)
+        return koReadingStatisticsDBPath
     }
 
     // Get the persistent permission to the db file
