@@ -4,7 +4,8 @@
     android:padding="10dp"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:id="@+id/calendar_widget_layout">
+    android:id="@+id/calendar_widget_layout"
+    >
 
     <TextView
         android:id="@+id/monthTitle"

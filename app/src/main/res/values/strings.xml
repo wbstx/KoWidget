@@ -7,10 +7,16 @@
     <string name="next">Next</string>
     <string name="previous">Previous</string>
 
-    <string name="setting_general_db_dir_head"> Koreader Directory</string>
-    <string name="setting_general_db_dir_default"> Please specify the koreader path</string>
+    <string name="setting_preview_placeholder">Please set a valid KOReader path</string>
 
-    <string name="setting_general_show_calendar"> Show Calendar</string>
+    <string name="setting_general_head">General</string>
+    <string name="setting_general_db_dir_head">Koreader Directory</string>
+    <string name="setting_general_db_dir_default">Please specify the koreader path</string>
+    <string name="setting_general_show_calendar">Show Calendar</string>
+
+    <string name="setting_calendar_head">Calendar</string>
+    <string name="setting_calendar_target_reading_time_head">Daily Reading Goal</string>
+
 
     <string name="lorem_ipsum">
         Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam in scelerisque sem. Mauris

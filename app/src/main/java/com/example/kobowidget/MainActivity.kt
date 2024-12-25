@@ -1,6 +1,8 @@
 package com.example.kobowidget
 
 import android.app.Activity
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.database.sqlite.SQLiteDatabase
@@ -9,6 +11,8 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.DocumentsContract
 import android.util.Log
+import android.view.Gravity
+import android.view.LayoutInflater
 import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
@@ -16,6 +20,10 @@ import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
 import android.view.Menu
 import android.view.MenuItem
+import android.widget.Button
+import android.widget.FrameLayout
+import android.widget.LinearLayout
+import android.widget.RemoteViews
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
@@ -33,6 +41,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var openDocumentTreeLauncher: ActivityResultLauncher<Intent>
 
     private lateinit var statisticsDataset: SQLiteDatabase
+    private var statisticsHandler: KoReadingStatisticsDBHandler? = null
+
+    private lateinit var calendarDrawer: CalendarWidgetDrawer
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,36 +57,12 @@ class MainActivity : AppCompatActivity() {
 //        appBarConfiguration = AppBarConfiguration(navController.graph)
 //        setupActionBarWithNavController(navController, appBarConfiguration)
 
-        val generalPreferences = getSharedPreferences("general_preference", Context.MODE_PRIVATE)
-        val koreaderUriString = generalPreferences.getString("koreader_path", null)
-        koreaderUriString?.let {
-            setDBPathOptionAndIcon(Uri.parse(koreaderUriString))
-        }
-
-        setOptionsListener(binding)
-
-//        binding.fab.setOnClickListener { view ->
-////            Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-////                .setAction("Action", null)
-////                .setAnchorView(R.id.fab).show()
-//            val currentTimestamp = System.currentTimeMillis() / 1000
-//            var statisticsHandler = KoReadingStatisticsDBHandler(this, koReadingStatisticsDBPath!!)
-//            if (::statisticsDataset.isInitialized) statisticsHandler.retrieveBooksFromPeriod(statisticsHandler.calculateCurrentMonthStartTimestamps(), currentTimestamp)
-//            if (::statisticsDataset.isInitialized) statisticsHandler.retrieveDaysFromPeriod(statisticsHandler.calculateCurrentMonthStartTimestamps(), currentTimestamp)
-//
-//            val sharedPreferences = getSharedPreferences("calendar_preference", Context.MODE_PRIVATE)
-//            val editor = sharedPreferences.edit()
-//            editor.putString("reading_statistics_db_path", koReadingStatisticsDBPath.toString())
-//            editor.apply()
-//
-//            val intent = Intent(this, CalendarWidget::class.java).apply {
-//                action = CalendarWidget.ACTION_UPDATE_CALENDAR
-//            }
-//            sendBroadcast(intent)
-//        }
+        loadPreference()
+        updateWidgetPreview()
+        setOptionsListeners(binding)
     }
 
-    private fun setOptionsListener(binding: ActivityMainBinding) {
+    private fun setOptionsListeners(binding: ActivityMainBinding) {
         /////////////////////////
         // General
         /////////////////////////
@@ -100,17 +87,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.settingGeneralDbPath.setOnClickListener{ view ->
-//            val currentTimestamp = System.currentTimeMillis() / 1000
-//            var statisticsHandler = KoReadingStatisticsDBHandler(this, koReadingStatisticsDBPath!!)
-//            if (::statisticsDataset.isInitialized) statisticsHandler.retrieveBooksFromPeriod(statisticsHandler.calculateCurrentMonthStartTimestamps(), currentTimestamp)
-//            if (::statisticsDataset.isInitialized) statisticsHandler.retrieveDaysFromPeriod(statisticsHandler.calculateCurrentMonthStartTimestamps(), currentTimestamp)
-
             findKoreaderDB()
-
-//            val intent = Intent(this, CalendarWidget::class.java).apply {
-//                action = CalendarWidget.ACTION_UPDATE_CALENDAR
-//            }
-//            sendBroadcast(intent)
         }
     }
 
@@ -136,11 +113,56 @@ class MainActivity : AppCompatActivity() {
                 || super.onSupportNavigateUp()
     }
 
+    private fun loadPreference() {
+        /////////////////////////
+        // General
+        /////////////////////////
+
+        // Load the koreader path in the preference
+        val generalPreferences = getSharedPreferences("general_preference", Context.MODE_PRIVATE)
+        val koreaderUriString = generalPreferences.getString("koreader_path", null)
+        koreaderUriString?.let {
+            setDBPathOptionAndIcon(Uri.parse(koreaderUriString))
+        }
+
+        /////////////////////////
+        // Calendar
+        /////////////////////////
+        val sharedPreferences =
+            this.getSharedPreferences("calendar_preference", Context.MODE_PRIVATE)
+        val koReadingStatisticsDBPath =
+            sharedPreferences.getString("reading_statistics_db_path", null)
+        Log.d("calendar widget", "$koReadingStatisticsDBPath")
+
+        koReadingStatisticsDBPath.let {
+            try {
+                statisticsHandler =
+                    KoReadingStatisticsDBHandler(this, Uri.parse(koReadingStatisticsDBPath))
+            } catch (e: Exception) {
+                println("Error accessing Koreader Statistics DB file ${koReadingStatisticsDBPath}: ${e.message}")
+            }
+        }
+    }
+
     private fun findKoreaderDB() {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
         }
         openDocumentTreeLauncher.launch(intent)
+    }
+
+    private fun updateWidgetPreview() {
+        if (statisticsHandler != null) {
+            val widgetContainer = findViewById<FrameLayout>(R.id.widgetContainer)
+            widgetContainer.removeAllViews()
+            var widgetView = layoutInflater.inflate(R.layout.widget_calendar, widgetContainer, false) as LinearLayout
+
+            calendarDrawer = CalendarWidgetDrawer(this, statisticsHandler)
+            calendarDrawer.drawDayCellsMain(widgetView)
+
+            widgetView = widgetView.apply { gravity = Gravity.CENTER }
+            widgetContainer.addView(widgetView)
+        }
     }
 
     fun getFileUriInFolder(folderUri: Uri?, filePath: String): Uri? {
