@@ -22,6 +22,15 @@
             android:gravity="center"
             android:layout_gravity="center"/>
 
+        <ImageView
+            android:id="@+id/test_book_cover"
+            android:layout_width="200dp"
+            android:layout_height="200dp"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            android:layout_gravity="center"
+            />
+
     </FrameLayout>
 
     <!-- 下半部分可滑动区域 -->

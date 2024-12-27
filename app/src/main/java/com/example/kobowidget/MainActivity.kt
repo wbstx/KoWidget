@@ -1,37 +1,28 @@
 package com.example.kobowidget
 
 import android.app.Activity
-import android.appwidget.AppWidgetManager
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.database.sqlite.SQLiteDatabase
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Bundle
 import android.provider.DocumentsContract
 import android.util.Log
 import android.view.Gravity
-import android.view.LayoutInflater
 import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.navigateUp
-import androidx.navigation.ui.setupActionBarWithNavController
 import android.view.Menu
 import android.view.MenuItem
-import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.RemoteViews
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.documentfile.provider.DocumentFile
 import com.example.kobowidget.databinding.ActivityMainBinding
-import java.io.File
-import java.io.FileOutputStream
-import java.util.Calendar
 
 class MainActivity : AppCompatActivity() {
 
@@ -40,7 +31,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var openDocumentTreeLauncher: ActivityResultLauncher<Intent>
 
-    private lateinit var statisticsDataset: SQLiteDatabase
+    private var bookInfoDBHandler: KoReaderBookInfoDBHandler? = null
     private var statisticsHandler: KoReadingStatisticsDBHandler? = null
 
     private lateinit var calendarDrawer: CalendarWidgetDrawer
@@ -58,7 +49,7 @@ class MainActivity : AppCompatActivity() {
 //        setupActionBarWithNavController(navController, appBarConfiguration)
 
         loadPreference()
-        updateWidgetPreview()
+//        updateWidgetPreview()
         setOptionsListeners(binding)
     }
 
@@ -69,10 +60,12 @@ class MainActivity : AppCompatActivity() {
         openDocumentTreeLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == Activity.RESULT_OK) {
                 result.data?.data?.let { uri ->
-//                    koReaderPath = uri
                     persistAccessPermission(uri)
 
-                    val koReadingStatisticsDBPath = setDBPathOptionAndIcon(uri)
+                    val dbPaths = setDBPathOptionAndIcon(uri)
+                    val koReadingStatisticsDBPath = dbPaths[0]
+                    val koReadingBookInfoDBPath = dbPaths[1]
+
                     // save the statistics db path into preference
                     if (koReadingStatisticsDBPath != null){
                         // Save the koreader statistics db path into the preference
@@ -81,7 +74,7 @@ class MainActivity : AppCompatActivity() {
                         editor.putString("reading_statistics_db_path", koReadingStatisticsDBPath.toString())
                         editor.apply()
                     }
-                    binding.settingGeneralDbPathContent.text = convertReadablePath(this, uri)
+                    binding.settingGeneralDbPathContent.text = convertReadablePath(uri)
                 }
             }
         }
@@ -165,44 +158,49 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun getFileUriInFolder(folderUri: Uri?, filePath: String): Uri? {
+    private fun getDocumentUriInFolder(folderUri: Uri?, filePath: String): Uri? {
         folderUri?.let {
             val treeDocumentId = DocumentsContract.getTreeDocumentId(folderUri)
             val targetDocumentId = "$treeDocumentId/$filePath"
-            return DocumentsContract.buildDocumentUriUsingTree(folderUri, targetDocumentId)
-        }
-        return null
-    }
+            val targetDocumentPath = DocumentsContract.buildDocumentUriUsingTree(folderUri, targetDocumentId)
 
-    fun getStatisticsPath(koreaderPath: Uri): Uri? {
-        if (koreaderPath != null) {
-            val statisticsRelativePath = getFileUriInFolder(koreaderPath, "settings/statistics.sqlite3")
-            val documentFile = DocumentFile.fromSingleUri(this, statisticsRelativePath!!)
+            val documentFile = DocumentFile.fromSingleUri(this, targetDocumentPath)
             if (documentFile != null && documentFile.exists()) {
                 Log.d("DocumentFile", "File exists: ${documentFile.name}")
-                return statisticsRelativePath
+                return targetDocumentPath
             } else {
-                Log.e("DocumentFile", "File not found: $statisticsRelativePath")
+                Log.e("DocumentFile", "File not found: $filePath")
                 return null
             }
         }
         return null
     }
 
-    private fun setDBPathOptionAndIcon(koreaderUri: Uri): Uri? {
-        val koReadingStatisticsDBPath = getStatisticsPath(koreaderUri)
-        if (koReadingStatisticsDBPath != null){
+    private fun setDBPathOptionAndIcon(koreaderUri: Uri): Array<Uri?> {
+        val koReaderStatisticsDBPath = getDocumentUriInFolder(koreaderUri, "settings/statistics.sqlite3")
+        val koReaderBookInfoDBPath = getDocumentUriInFolder(koreaderUri, "settings/bookinfo_cache.sqlite3")
+
+        bookInfoDBHandler = KoReaderBookInfoDBHandler(this, koReaderBookInfoDBPath!!)
+        val bookCover = bookInfoDBHandler!!.printAllBook()
+        bookCover?.let {
+            Log.d("Bookinfo", "Setting Image Bitmap")
+            val testBookCoverImageView = findViewById<ImageView>(R.id.test_book_cover)
+            testBookCoverImageView.setImageBitmap(bookCover)
+        }
+
+        if (koReaderStatisticsDBPath != null && koReaderBookInfoDBPath != null){
             val drawable: Drawable? = ContextCompat.getDrawable(this, R.drawable.ic_check)
             Log.d("calendar", "Binding: ${binding.icDbPathState}")
             binding.icDbPathState.setImageDrawable(drawable)
-            Log.d("calendar","drawable set $koReadingStatisticsDBPath")
+            Log.d("calendar","drawable set $koReaderStatisticsDBPath")
+            Log.d("calendar","drawable set $koReaderBookInfoDBPath")
         }
         else{
             val drawable: Drawable? = ContextCompat.getDrawable(this, R.drawable.ic_cross)
             binding.icDbPathState.setImageDrawable(drawable)
         }
-        binding.settingGeneralDbPathContent.text = convertReadablePath(this, koreaderUri)
-        return koReadingStatisticsDBPath
+        binding.settingGeneralDbPathContent.text = convertReadablePath(koreaderUri)
+        return arrayOf(koReaderStatisticsDBPath, koReaderBookInfoDBPath)
     }
 
     // Get the persistent permission to the db file
@@ -221,7 +219,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun convertReadablePath(context: Context, uri: Uri): String? {
+    private fun convertReadablePath(uri: Uri): String? {
         if ("com.android.externalstorage.documents" == uri.authority) {
             val docId = DocumentsContract.getTreeDocumentId(uri) // 获取 Document ID
             val split = docId.split(":")
