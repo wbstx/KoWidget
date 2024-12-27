@@ -1,21 +1,11 @@
 package com.example.kobowidget
 
-import android.app.PendingIntent
-import android.appwidget.AppWidgetManager
-import android.appwidget.AppWidgetProvider
-import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
-import android.util.Log
 import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
 import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.RemoteViews
 import android.widget.TextView
-import com.example.kobowidget.KoReadingStatisticsDBHandler.DayStat
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.util.Calendar
@@ -25,19 +15,14 @@ import java.util.Calendar
  */
 class CalendarWidgetDrawer(
     private val context: Context,
-    val statisticsHandler: KoReadingStatisticsDBHandler?
-) {
+    private val statisticsHandler: KoReadingStatisticsDBHandler?
+): WidgetDrawer() {
     private var targetReadingSeconds: Long = 3600
 
-    fun getById(
-        context: Context,
-        layoutId: Int
-    ) = RemoteViews(context.packageName, layoutId)
-
-    fun drawDayCellsRemote(
+    override fun drawDayCellsRemote(
         widgetViews: RemoteViews
     ) {
-        var dayStats = statisticsHandler?.getThisMonthDayStats()
+        val dayStats = statisticsHandler?.getThisMonthDayStats()
 
         dayStats?.let {
             val currentDate = LocalDate.now()
@@ -97,17 +82,11 @@ class CalendarWidgetDrawer(
         }
     }
 
-    fun getLayoutById(
-        inflater: LayoutInflater,
-        layoutId: Int,
-        parent: ViewGroup
-    ) = inflater.inflate(layoutId, parent, false)
-
-    fun drawDayCellsMain(
+    override fun drawDayCellsMain(
         widgetView: LinearLayout
     ) {
         val inflater = LayoutInflater.from(context)
-        var dayStats = statisticsHandler?.getThisMonthDayStats()
+        val dayStats = statisticsHandler?.getThisMonthDayStats()
 
         dayStats?.let {
             val currentDate = LocalDate.now()
@@ -125,12 +104,12 @@ class CalendarWidgetDrawer(
             val monthTitleView = widgetView.findViewById<TextView>(R.id.monthTitle)
             monthTitleView.text = monthTitle
 
-            val weekHeadView = inflater.inflate(R.layout.widget_component_calendar_week_head, null)
             val calendarBoard = widgetView.findViewById<LinearLayout>(R.id.calendar_board)
+            val weekHeadView = inflater.inflate(R.layout.widget_component_calendar_week_head, calendarBoard, false)
             calendarBoard.addView(weekHeadView)
 
             // Clear existing grid
-            val calendarDayBoard = inflater.inflate(R.layout.widget_component_calendar_day_board, null) as GridLayout
+            val calendarDayBoard = inflater.inflate(R.layout.widget_component_calendar_day_board, calendarBoard, false) as GridLayout
 
             // Add days to the grid based on the first day of the month
             var day = 0
