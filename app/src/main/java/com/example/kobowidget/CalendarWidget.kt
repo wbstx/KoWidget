@@ -38,8 +38,8 @@ class CalendarWidget : AppWidgetProvider() {
         // There may be multiple widgets active, so update all of them
         for (appWidgetId in appWidgetIds) {
             // Update the widget layout
-            val views = RemoteViews(context.packageName, R.layout.widget_calendar)
-            updateCalendar(context, views)
+//            val views = RemoteViews(context.packageName, R.layout.widget_calendar)
+            updateCalendar(context)
         }
     }
 
@@ -56,20 +56,18 @@ class CalendarWidget : AppWidgetProvider() {
 
         if (intent.action == ACTION_UPDATE_CALENDAR) {
             Log.d("Calendar", "onReceive update calendar")
-            val views = RemoteViews(context.packageName, R.layout.widget_calendar)
-            updateCalendar(context, views)
+            updateCalendar(context)
         }
     }
 
     fun updateCalendar(
-        context: Context,
-        widgetViews: RemoteViews
+        context: Context
     ) {
         val appWidgetManager = AppWidgetManager.getInstance(context)
         val componentName = ComponentName(context, CalendarWidget::class.java)
 
         val sharedPreferences =
-            context.getSharedPreferences("calendar_preference", Context.MODE_PRIVATE)
+            context.getSharedPreferences("general_preference", Context.MODE_PRIVATE)
         val koReadingStatisticsDBPath =
             sharedPreferences.getString("reading_statistics_db_path", null)
         Log.d("calendar widget", "$koReadingStatisticsDBPath")
@@ -83,18 +81,19 @@ class CalendarWidget : AppWidgetProvider() {
             }
             if (statisticsHandler != null) {
                 calendarDrawer = CalendarWidgetDrawer(context, statisticsHandler)
-                calendarDrawer.drawDayCellsRemote(widgetViews)
+                val widgetViews = calendarDrawer.getWidgetViewRemote()
+                calendarDrawer.drawContentRemote(widgetViews)
+
+                // Create an intent for the widget to open when clicked
+                val intent = Intent(context, MainActivity::class.java)
+                val pendingIntent =
+                    PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+                // Set a click listener for the widget
+                widgetViews.setOnClickPendingIntent(R.id.calendar_days_layout, pendingIntent)
+                // Update the widget
+                appWidgetManager.updateAppWidget(componentName, widgetViews)
             }
         }
-
-        // Create an intent for the widget to open when clicked
-        val intent = Intent(context, MainActivity::class.java)
-        val pendingIntent =
-            PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT)
-        // Set a click listener for the widget
-        widgetViews.setOnClickPendingIntent(R.id.calendar_days_layout, pendingIntent)
-        // Update the widget
-        appWidgetManager.updateAppWidget(componentName, widgetViews)
     }
 
     fun getById(

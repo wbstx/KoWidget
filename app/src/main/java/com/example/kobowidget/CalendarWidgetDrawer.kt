@@ -19,7 +19,15 @@ class CalendarWidgetDrawer(
 ): WidgetDrawer() {
     private var targetReadingSeconds: Long = 3600
 
-    override fun drawDayCellsRemote(
+    override fun getWidgetViewRemote(): RemoteViews {
+        return RemoteViews(context.packageName, R.layout.widget_calendar)
+    }
+
+    override fun drawContentRemote(widgetViews: RemoteViews) {
+        drawDayCellsRemote(widgetViews)
+    }
+
+    private fun drawDayCellsRemote(
         widgetViews: RemoteViews
     ) {
         val dayStats = statisticsHandler?.getThisMonthDayStats()
@@ -82,7 +90,17 @@ class CalendarWidgetDrawer(
         }
     }
 
-    override fun drawDayCellsMain(
+    override fun getWidgetViewMain(): LinearLayout {
+        val inflater = LayoutInflater.from(context)
+        val widgetView = inflater.inflate(R.layout.widget_calendar, null) as LinearLayout
+        return widgetView
+    }
+
+    override fun drawContentMain(widgetView: LinearLayout) {
+        drawDayCellsMain(widgetView)
+    }
+
+    fun drawDayCellsMain(
         widgetView: LinearLayout
     ) {
         val inflater = LayoutInflater.from(context)

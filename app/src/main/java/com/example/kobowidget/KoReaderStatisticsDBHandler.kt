@@ -12,7 +12,7 @@ class KoReadingStatisticsDBHandler (
     private var context: Context,
     dbPath: Uri
 ) {
-    private lateinit var statisticsDataset: SQLiteDatabase
+    lateinit var statisticsDataset: SQLiteDatabase
 
     init {
         readSQLiteDatabase(dbPath)
@@ -30,7 +30,7 @@ class KoReadingStatisticsDBHandler (
         try {
             val inputStream = this.context.contentResolver.openInputStream(uri)
             val cacheDir = this.context.cacheDir
-            val tempFile = File(cacheDir, "temp_database.sqlite")
+            val tempFile = File(cacheDir, "temp_statistics.sqlite")
             inputStream?.use { input ->
                 FileOutputStream(tempFile).use { output ->
                     input.copyTo(output)

@@ -3,6 +3,7 @@ package com.example.kobowidget
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.database.sqlite.SQLiteDatabase
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Bundle
@@ -17,7 +18,6 @@ import android.view.Menu
 import android.view.MenuItem
 import android.widget.FrameLayout
 import android.widget.ImageView
-import android.widget.LinearLayout
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
@@ -29,12 +29,25 @@ class MainActivity : AppCompatActivity() {
     private lateinit var appBarConfiguration: AppBarConfiguration
     private lateinit var binding: ActivityMainBinding
 
-    private lateinit var openDocumentTreeLauncher: ActivityResultLauncher<Intent>
-
     private var bookInfoDBHandler: KoReaderBookInfoDBHandler? = null
     private var statisticsHandler: KoReadingStatisticsDBHandler? = null
+    private var historyHandler: KoReaderHistoryHandler? = null
 
     private lateinit var calendarDrawer: CalendarWidgetDrawer
+    private lateinit var currentBookDrawer: CurrentBookWidgetDrawer
+
+    private var openDocumentTreeLauncher: ActivityResultLauncher<Intent> = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            result.data?.data?.let { uri ->
+                persistAccessPermission(uri)
+                setDBHandlers(uri)
+
+                binding.let{
+                    binding.settingGeneralDbPathContent.text = convertReadablePath(uri)
+                }
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,7 +62,7 @@ class MainActivity : AppCompatActivity() {
 //        setupActionBarWithNavController(navController, appBarConfiguration)
 
         loadPreference()
-//        updateWidgetPreview()
+        updateWidgetPreview()
         setOptionsListeners(binding)
     }
 
@@ -57,28 +70,6 @@ class MainActivity : AppCompatActivity() {
         /////////////////////////
         // General
         /////////////////////////
-        openDocumentTreeLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == Activity.RESULT_OK) {
-                result.data?.data?.let { uri ->
-                    persistAccessPermission(uri)
-
-                    val dbPaths = setDBPathOptionAndIcon(uri)
-                    val koReadingStatisticsDBPath = dbPaths[0]
-                    val koReadingBookInfoDBPath = dbPaths[1]
-
-                    // save the statistics db path into preference
-                    if (koReadingStatisticsDBPath != null){
-                        // Save the koreader statistics db path into the preference
-                        val sharedPreferences = getSharedPreferences("calendar_preference", Context.MODE_PRIVATE)
-                        val editor = sharedPreferences.edit()
-                        editor.putString("reading_statistics_db_path", koReadingStatisticsDBPath.toString())
-                        editor.apply()
-                    }
-                    binding.settingGeneralDbPathContent.text = convertReadablePath(uri)
-                }
-            }
-        }
-
         binding.settingGeneralDbPath.setOnClickListener{ view ->
             findKoreaderDB()
         }
@@ -115,26 +106,27 @@ class MainActivity : AppCompatActivity() {
         val generalPreferences = getSharedPreferences("general_preference", Context.MODE_PRIVATE)
         val koreaderUriString = generalPreferences.getString("koreader_path", null)
         koreaderUriString?.let {
-            setDBPathOptionAndIcon(Uri.parse(koreaderUriString))
+            val dbPaths = setDBHandlers(Uri.parse(koreaderUriString))
+            val koReaderStatisticsDBPath = dbPaths[0]
+            val koReaderBookInfoDBPath = dbPaths[1]
+            val koReaderHistoryPath = dbPaths[2]
+
+            // Set up the koreader path state icon
+            if (koReaderStatisticsDBPath != null && koReaderBookInfoDBPath != null) {
+                val drawable: Drawable? = ContextCompat.getDrawable(this, R.drawable.ic_check)
+                binding.icDbPathState.setImageDrawable(drawable)
+            }
+            else{
+                val drawable: Drawable? = ContextCompat.getDrawable(this, R.drawable.ic_cross)
+                binding.icDbPathState.setImageDrawable(drawable)
+            }
+            binding.settingGeneralDbPathContent.text = convertReadablePath(Uri.parse(koreaderUriString))
         }
 
         /////////////////////////
         // Calendar
         /////////////////////////
-        val sharedPreferences =
-            this.getSharedPreferences("calendar_preference", Context.MODE_PRIVATE)
-        val koReadingStatisticsDBPath =
-            sharedPreferences.getString("reading_statistics_db_path", null)
-        Log.d("calendar widget", "$koReadingStatisticsDBPath")
 
-        koReadingStatisticsDBPath.let {
-            try {
-                statisticsHandler =
-                    KoReadingStatisticsDBHandler(this, Uri.parse(koReadingStatisticsDBPath))
-            } catch (e: Exception) {
-                println("Error accessing Koreader Statistics DB file ${koReadingStatisticsDBPath}: ${e.message}")
-            }
-        }
     }
 
     private fun findKoreaderDB() {
@@ -148,13 +140,20 @@ class MainActivity : AppCompatActivity() {
         if (statisticsHandler != null) {
             val widgetContainer = findViewById<FrameLayout>(R.id.widgetContainer)
             widgetContainer.removeAllViews()
-            var widgetView = layoutInflater.inflate(R.layout.widget_calendar, widgetContainer, false) as LinearLayout
 
             calendarDrawer = CalendarWidgetDrawer(this, statisticsHandler)
-            calendarDrawer.drawDayCellsMain(widgetView)
+            val calendarWidgetView = calendarDrawer.getWidgetViewMain()
+            calendarDrawer.drawContentMain(calendarWidgetView)
 
-            widgetView = widgetView.apply { gravity = Gravity.CENTER }
-            widgetContainer.addView(widgetView)
+            currentBookDrawer = CurrentBookWidgetDrawer(this, statisticsHandler,
+                    bookInfoDBHandler, historyHandler)
+            val currentBookWidgetView = currentBookDrawer.getWidgetViewMain()
+            currentBookDrawer.drawContentMain(currentBookWidgetView)
+
+            calendarWidgetView.apply { gravity = Gravity.CENTER }
+            currentBookWidgetView.apply { gravity = Gravity.CENTER }
+//            widgetContainer.addView(calendarWidgetView)
+            widgetContainer.addView(currentBookWidgetView)
         }
     }
 
@@ -176,31 +175,46 @@ class MainActivity : AppCompatActivity() {
         return null
     }
 
-    private fun setDBPathOptionAndIcon(koreaderUri: Uri): Array<Uri?> {
-        val koReaderStatisticsDBPath = getDocumentUriInFolder(koreaderUri, "settings/statistics.sqlite3")
-        val koReaderBookInfoDBPath = getDocumentUriInFolder(koreaderUri, "settings/bookinfo_cache.sqlite3")
+    private fun setDBHandlers(koreaderUri: Uri): Array<Uri?> {
+        val koReaderStatisticsDBPath =
+            getDocumentUriInFolder(koreaderUri, "settings/statistics.sqlite3")
+        val koReaderBookInfoDBPath =
+            getDocumentUriInFolder(koreaderUri, "settings/bookinfo_cache.sqlite3")
+        val historyPath =
+            getDocumentUriInFolder(koreaderUri, "history.lua")
 
-        bookInfoDBHandler = KoReaderBookInfoDBHandler(this, koReaderBookInfoDBPath!!)
-        val bookCover = bookInfoDBHandler!!.printAllBook()
-        bookCover?.let {
-            Log.d("Bookinfo", "Setting Image Bitmap")
-            val testBookCoverImageView = findViewById<ImageView>(R.id.test_book_cover)
-            testBookCoverImageView.setImageBitmap(bookCover)
+        koReaderStatisticsDBPath?.let {
+            statisticsHandler =
+                KoReadingStatisticsDBHandler(this, koReaderStatisticsDBPath)
+
+            val sharedPreferences =
+                getSharedPreferences("general_preference", Context.MODE_PRIVATE)
+            val editor = sharedPreferences.edit()
+            editor.putString("reading_statistics_db_path", koReaderStatisticsDBPath.toString())
+            editor.apply()
         }
 
-        if (koReaderStatisticsDBPath != null && koReaderBookInfoDBPath != null){
-            val drawable: Drawable? = ContextCompat.getDrawable(this, R.drawable.ic_check)
-            Log.d("calendar", "Binding: ${binding.icDbPathState}")
-            binding.icDbPathState.setImageDrawable(drawable)
-            Log.d("calendar","drawable set $koReaderStatisticsDBPath")
-            Log.d("calendar","drawable set $koReaderBookInfoDBPath")
+        koReaderBookInfoDBPath?.let {
+            bookInfoDBHandler =
+                KoReaderBookInfoDBHandler(this, koReaderBookInfoDBPath)
+
+            val sharedPreferences =
+                getSharedPreferences("general_preference", Context.MODE_PRIVATE)
+            val editor = sharedPreferences.edit()
+            editor.putString("bookinfo_db_path", koReaderBookInfoDBPath.toString())
+            editor.apply()
+
+            val bookCover = bookInfoDBHandler!!.printAllBook()
+            bookCover?.let {
+                Log.d("Bookinfo", "Setting Image Bitmap")
+            }
         }
-        else{
-            val drawable: Drawable? = ContextCompat.getDrawable(this, R.drawable.ic_cross)
-            binding.icDbPathState.setImageDrawable(drawable)
+
+        historyPath?.let {
+            historyHandler = KoReaderHistoryHandler(this, historyPath)
         }
-        binding.settingGeneralDbPathContent.text = convertReadablePath(koreaderUri)
-        return arrayOf(koReaderStatisticsDBPath, koReaderBookInfoDBPath)
+
+        return arrayOf(koReaderStatisticsDBPath, koReaderBookInfoDBPath, historyPath)
     }
 
     // Get the persistent permission to the db file

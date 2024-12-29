@@ -20,13 +20,21 @@ open class WidgetDrawer {
         parent: ViewGroup
     ): View = inflater.inflate(layoutId, parent, false)
 
-    open fun drawDayCellsRemote(
+    open fun getWidgetViewMain(): Any? {
+        return null
+    }
+
+    open fun getWidgetViewRemote(): Any? {
+        return null
+    }
+
+    open fun drawContentRemote(
         widgetViews: RemoteViews
     ) {
 
     }
 
-    open fun drawDayCellsMain(
+    open fun drawContentMain(
         widgetView: LinearLayout
     ) {
 
