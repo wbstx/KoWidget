@@ -97,7 +97,7 @@ class KoReaderBookInfoDBHandler (
             """.trimIndent()
 
         val file = File(filePath)
-        val directory = file.parent + '/'
+        val directory = file.parent?.plus('/')
         val filename = file.name
 
         val cursor = bookInfoDataset.rawQuery(sql, arrayOf(directory, filename))
@@ -117,6 +117,7 @@ class KoReaderBookInfoDBHandler (
                     val coverData = cursor.getBlob(cursor.getColumnIndex("cover_bb_data"))
 
                     Log.d("BookInfo", "Find Book!: ID: $id, Title: $title")
+                    // TODO: check None, especially book without cover
                     return BookInfo(id, Uri.parse(filePath), title, authors, coverWidth, coverHeight, coverBBType, coverStride, coverData)
 
                 } while (cursor.moveToNext())
@@ -126,6 +127,8 @@ class KoReaderBookInfoDBHandler (
         return null
     }
 }
+
+
 
 fun byteArrayToBitmapRGB(data: ByteArray, width: Int, height: Int, coverType: Int, coverStride: Int): Bitmap? {
     if (coverType != TYPE_BBRGB24 && coverType != TYPE_BBRGB32) {

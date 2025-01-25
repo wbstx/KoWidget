@@ -1,5 +1,6 @@
 package com.example.kobowidget
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.net.Uri
@@ -158,6 +159,60 @@ class KoReadingStatisticsDBHandler (
         } else {
             Log.d("Calendar","No data found for the given start_time.")
         }
+    }
+
+    @SuppressLint("Range")
+    fun getBookStat(bookId: Int): BookInfo? {
+        val totalReadDaysSQL = """
+            SELECT count(*)
+            FROM   (
+                        SELECT strftime('%%Y-%%m-%%d', start_time, 'unixepoch', 'localtime') AS dates
+                        FROM   page_stat
+                        WHERE  id_book = ?
+                        GROUP  BY dates
+                   );
+            """.trimIndent()
+
+        val totalReadDaysCursor = statisticsDataset.rawQuery(totalReadDaysSQL, arrayOf(bookId.toString()))
+
+        totalReadDaysCursor.use {
+            if (totalReadDaysCursor.moveToFirst()) {
+                val count = totalReadDaysCursor.getInt(0)
+                Log.d("BookInfo","Unique Dates for Book ID $bookId: $count")
+            } else {
+                Log.d("BookInfo","$bookId not found")
+            }
+        }
+
+        val bookPagesSQL = """
+            SELECT sum(duration),
+                   count(DISTINCT page),
+                   min(start_time),
+                   (SELECT max(ps2.paage) 
+                    FROM page_stat AS ps2 
+                    WHERE ps2.start_time = (SELECT max(start_time) FROM page_stat WHERE id_book = ?))
+            FROM page_stat
+            WHERE id_book = ?;
+            """.trimIndent()
+
+        val bookPagesCursor = statisticsDataset.rawQuery(bookPagesSQL, arrayOf(bookId.toString(), bookId.toString()))
+        bookPagesCursor.use {
+            if (bookPagesCursor.moveToFirst()) {
+                val totalTimeBook = bookPagesCursor.getLong(0)  // sum(duration)
+                val totalReadPages = bookPagesCursor.getInt(1)  // count(DISTINCT page)
+                val firstOpen = bookPagesCursor.getLong(2)      // min(start_time)
+                val lastPage = bookPagesCursor.getInt(3)        // max(page) from the last open time
+
+                Log.d("BookInfo","Total Time: $totalTimeBook, ${totalTimeBook / 60}")
+                Log.d("BookInfo","Total Read Pages: $totalReadPages")
+                Log.d("BookInfo","First Open Time: $firstOpen")
+                Log.d("BookInfo","Last Page at Last Open Time: $lastPage")
+            } else {
+                Log.d("BookInfo","No data found for book ID $bookId.")
+            }
+        }
+
+        return null
     }
 
     fun calculateStartOfDayTimestamp(): Long {
