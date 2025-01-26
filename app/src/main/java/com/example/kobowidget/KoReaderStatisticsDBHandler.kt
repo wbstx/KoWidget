@@ -188,7 +188,7 @@ class KoReadingStatisticsDBHandler (
             SELECT sum(duration),
                    count(DISTINCT page),
                    min(start_time),
-                   (SELECT max(ps2.paage) 
+                   (SELECT max(ps2.page) 
                     FROM page_stat AS ps2 
                     WHERE ps2.start_time = (SELECT max(start_time) FROM page_stat WHERE id_book = ?))
             FROM page_stat

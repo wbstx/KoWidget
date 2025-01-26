@@ -1,16 +1,24 @@
 package com.example.kobowidget
 
 import android.annotation.SuppressLint
+import android.content.ContentResolver
 import android.content.Context
+import android.content.Intent
 import android.database.sqlite.SQLiteDatabase
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.net.Uri
+import android.provider.DocumentsContract
 import android.util.Log
+import androidx.core.content.FileProvider
+import androidx.documentfile.provider.DocumentFile
 import com.github.luben.zstd.Zstd
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.IOException
+import java.security.MessageDigest
 import java.util.Calendar
 
 const val TYPE_BB4 = 0
@@ -19,6 +27,8 @@ const val TYPE_BB8A = 2
 const val TYPE_BBRGB16 = 3
 const val TYPE_BBRGB24 = 4
 const val TYPE_BBRGB32 = 5
+
+private const val REQUEST_CODE = 1001
 
 class KoReaderBookInfoDBHandler (
     private var context: Context,
@@ -53,7 +63,7 @@ class KoReaderBookInfoDBHandler (
     }
 
     @SuppressLint("Range")
-    fun printAllBook() : Bitmap? {
+    fun printAllBook(): Bitmap? {
         val sql = """
                 SELECT * FROM bookinfo
             """.trimIndent()
@@ -70,11 +80,17 @@ class KoReaderBookInfoDBHandler (
                 val coverData = cursor.getBlob(cursor.getColumnIndex("cover_bb_data"))
 
                 Log.d("BookInfo", "ID: $id, Title: $title, Cover Width: $coverWidth")
-                if (title == "饮啜尸汁"){
-                    Log.d("BookInfo", "Title: $title, Cover Width: $coverWidth," +
-                            " Cover Height: $coverHeight, Cover Data Size: ${coverData.size}")
-                    val decompressedData: ByteArray = Zstd.decompress(coverData, coverData.size * 10)
-                    Log.d("BookInfo", "decompressedData ${decompressedData.size} ${coverStride * coverHeight}")
+                if (title == "饮啜尸汁") {
+                    Log.d(
+                        "BookInfo", "Title: $title, Cover Width: $coverWidth," +
+                                " Cover Height: $coverHeight, Cover Data Size: ${coverData.size}"
+                    )
+                    val decompressedData: ByteArray =
+                        Zstd.decompress(coverData, coverData.size * 10)
+                    Log.d(
+                        "BookInfo",
+                        "decompressedData ${decompressedData.size} ${coverStride * coverHeight}"
+                    )
 
 //                    if (decompressedData != null){
 ////                        val bitmap: Bitmap = BitmapFactory.decodeByteArray(decompressedData, 0, decompressedData.size)
@@ -103,6 +119,18 @@ class KoReaderBookInfoDBHandler (
         val cursor = bookInfoDataset.rawQuery(sql, arrayOf(directory, filename))
 
         Log.d("BookInfo", "Finding Book!: $directory, $filename")
+        val bookfile = File(directory + filename)
+        val uri = getDocumentUriInFolder(
+            Uri.parse("content://com.android.externalstorage.documents/tree/primary%3ABooks"),
+            file.name
+        )
+        Log.d("BookInfo", "$uri")
+        partialMD5(uri)?.let {
+            Log.d(
+                "BookInfo",
+                "MD5: $it, golden: cd3b2baf2872af1520a4b64eff0fe0dd"
+            )
+        } // Golden: cd3b2baf2872af1520a4b64eff0fe0dd
 
         cursor.use {
             if (it.moveToFirst()) {
@@ -118,7 +146,17 @@ class KoReaderBookInfoDBHandler (
 
                     Log.d("BookInfo", "Find Book!: ID: $id, Title: $title")
                     // TODO: check None, especially book without cover
-                    return BookInfo(id, Uri.parse(filePath), title, authors, coverWidth, coverHeight, coverBBType, coverStride, coverData)
+                    return BookInfo(
+                        id,
+                        Uri.parse(filePath),
+                        title,
+                        authors,
+                        coverWidth,
+                        coverHeight,
+                        coverBBType,
+                        coverStride,
+                        coverData
+                    )
 
                 } while (cursor.moveToNext())
             }
@@ -126,9 +164,67 @@ class KoReaderBookInfoDBHandler (
 
         return null
     }
+
+    private fun getDocumentUriInFolder(folderUri: Uri?, filePath: String): Uri? {
+        folderUri?.let {
+            val treeDocumentId = DocumentsContract.getTreeDocumentId(folderUri)
+            val targetDocumentId = "$treeDocumentId/$filePath"
+            val targetDocumentPath =
+                DocumentsContract.buildDocumentUriUsingTree(folderUri, targetDocumentId)
+            Log.d("DocumentFile", "$folderUri, $filePath")
+
+            val documentFile = DocumentFile.fromSingleUri(this.context, targetDocumentPath)
+            if (documentFile != null && documentFile.exists()) {
+                Log.d("DocumentFile", "File exists: ${documentFile.name}")
+                return targetDocumentPath
+            } else {
+                Log.e("DocumentFile", "File not found: $filePath")
+                return null
+            }
+        }
+        return null
+    }
+
+    fun partialMD5(uri: Uri?): String? {
+        if (uri == null) return null
+
+        /*        try {*/
+        val contentResolver: ContentResolver = this.context.contentResolver
+        var fileDescriptor = contentResolver.openFileDescriptor(uri, "r") ?: return null
+        var fileInputStream = FileInputStream(fileDescriptor.fileDescriptor)
+
+        val md = MessageDigest.getInstance("MD5")
+        val buffer = ByteArray(1024)
+        var bytesRead: Int
+
+        var position: Long = 0
+        val step = 1024
+        val size = 1024
+        for (i in -1..10) {
+            position = (step shl (2 * i)).toLong()
+
+            fileDescriptor = contentResolver.openFileDescriptor(uri, "r") ?: return null
+            fileInputStream = FileInputStream(fileDescriptor.fileDescriptor)
+            fileInputStream.skip(position)
+
+            val sample = ByteArray(size)
+            val bytesRead = fileInputStream.read(sample)
+
+            fileInputStream.close()
+
+            if (bytesRead == -1) {
+                break
+            }
+
+            md.update(sample, 0, bytesRead)
+
+        }
+
+        val digest = md.digest()
+        return digest.joinToString("") { "%02x".format(it) }
+
+    }
 }
-
-
 
 fun byteArrayToBitmapRGB(data: ByteArray, width: Int, height: Int, coverType: Int, coverStride: Int): Bitmap? {
     if (coverType != TYPE_BBRGB24 && coverType != TYPE_BBRGB32) {

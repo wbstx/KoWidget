@@ -12,6 +12,10 @@
     <string name="setting_general_head">General</string>
     <string name="setting_general_db_dir_head">Koreader Directory</string>
     <string name="setting_general_db_dir_default">Please specify the koreader path</string>
+
+    <string name="setting_general_books_dir_head">Books Directory</string>
+    <string name="setting_general_books_dir_default">Please specify the directory of books</string>
+
     <string name="setting_general_show_calendar">Show Calendar</string>
 
     <string name="setting_calendar_head">Calendar</string>

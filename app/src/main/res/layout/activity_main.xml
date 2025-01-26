@@ -63,7 +63,7 @@
                 android:layout_marginTop="10dp"
                 android:background="@drawable/rounded_corner_background"
                 android:padding="8dp"
-                android:id="@+id/setting_general_db_path"
+                android:id="@+id/setting_general_koreader_path"
                 >
 
                 <ImageView
@@ -113,6 +113,55 @@
                     app:layout_constraintTop_toTopOf="@id/setting_general_db_path_content"
                     app:layout_constraintBottom_toBottomOf="@id/setting_general_db_path_content"
                     app:layout_constraintEnd_toEndOf="parent"
+                    />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/rounded_corner_background"
+                android:padding="8dp"
+                android:id="@+id/setting_general_books_path"
+                >
+
+                <ImageView
+                    android:id="@+id/ic_books"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_bookshelf"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    />
+
+                <TextView
+                    android:id="@+id/setting_general_books_path_head"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:text="@string/setting_general_books_dir_head"
+                    android:textSize="14sp"
+                    android:textColor="#777777"
+                    app:layout_constraintStart_toEndOf="@+id/ic_books"
+                    app:layout_constraintTop_toTopOf="@+id/ic_books"
+                    app:layout_constraintBottom_toBottomOf="@+id/ic_books"
+                    />
+
+                <TextView
+                    android:id="@+id/setting_general_books_path_content"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:layout_marginTop="5dp"
+                    android:padding="0dp"
+                    android:text="@string/setting_general_books_dir_default"
+                    android:textSize="12sp"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    app:layout_constraintWidth_percent="0.7"
+                    app:layout_constraintStart_toEndOf="@+id/ic_books"
+                    app:layout_constraintTop_toBottomOf="@+id/setting_general_books_path_head"
                     />
 
             </androidx.constraintlayout.widget.ConstraintLayout>

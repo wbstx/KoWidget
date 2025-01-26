@@ -36,14 +36,25 @@ class MainActivity : AppCompatActivity() {
     private lateinit var calendarDrawer: CalendarWidgetDrawer
     private lateinit var currentBookDrawer: CurrentBookWidgetDrawer
 
-    private var openDocumentTreeLauncher: ActivityResultLauncher<Intent> = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+    private var settingKoreaderDBHandlersLauncher: ActivityResultLauncher<Intent> = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             result.data?.data?.let { uri ->
-                persistAccessPermission(uri)
+                persistAccessPermission(uri, "koreader_path")
                 setDBHandlers(uri)
 
                 binding.let{
                     binding.settingGeneralDbPathContent.text = convertReadablePath(uri)
+                }
+            }
+        }
+    }
+
+    private var settingBooksDirectoryPermissionLauncher: ActivityResultLauncher<Intent> = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            result.data?.data?.let { uri ->
+                persistAccessPermission(uri,"books_path")
+                binding.let{
+                    binding.settingGeneralBooksPathContent.text = convertReadablePath(uri)
                 }
             }
         }
@@ -70,8 +81,12 @@ class MainActivity : AppCompatActivity() {
         /////////////////////////
         // General
         /////////////////////////
-        binding.settingGeneralDbPath.setOnClickListener{ view ->
+        binding.settingGeneralKoreaderPath.setOnClickListener{ view ->
             findKoreaderDB()
+        }
+
+        binding.settingGeneralBooksPath.setOnClickListener{ view ->
+            findBooksDirectory()
         }
     }
 
@@ -105,6 +120,8 @@ class MainActivity : AppCompatActivity() {
         // Load the koreader path in the preference
         val generalPreferences = getSharedPreferences("general_preference", Context.MODE_PRIVATE)
         val koreaderUriString = generalPreferences.getString("koreader_path", null)
+        val bookDirectoryString = generalPreferences.getString("books_path", null)
+
         koreaderUriString?.let {
             val dbPaths = setDBHandlers(Uri.parse(koreaderUriString))
             val koReaderStatisticsDBPath = dbPaths[0]
@@ -120,7 +137,8 @@ class MainActivity : AppCompatActivity() {
                 val drawable: Drawable? = ContextCompat.getDrawable(this, R.drawable.ic_cross)
                 binding.icDbPathState.setImageDrawable(drawable)
             }
-            binding.settingGeneralDbPathContent.text = convertReadablePath(Uri.parse(koreaderUriString))
+            if (koreaderUriString != null) binding.settingGeneralDbPathContent.text = convertReadablePath(Uri.parse(koreaderUriString))
+            if (bookDirectoryString != null) binding.settingGeneralBooksPathContent.text = convertReadablePath(Uri.parse(bookDirectoryString))
         }
 
         /////////////////////////
@@ -133,7 +151,14 @@ class MainActivity : AppCompatActivity() {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
         }
-        openDocumentTreeLauncher.launch(intent)
+        settingKoreaderDBHandlersLauncher.launch(intent)
+    }
+
+    private fun findBooksDirectory() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        }
+        settingBooksDirectoryPermissionLauncher.launch(intent)
     }
 
     private fun updateWidgetPreview() {
@@ -162,6 +187,7 @@ class MainActivity : AppCompatActivity() {
             val treeDocumentId = DocumentsContract.getTreeDocumentId(folderUri)
             val targetDocumentId = "$treeDocumentId/$filePath"
             val targetDocumentPath = DocumentsContract.buildDocumentUriUsingTree(folderUri, targetDocumentId)
+            Log.d("DocumentFile", "$folderUri, $filePath")
 
             val documentFile = DocumentFile.fromSingleUri(this, targetDocumentPath)
             if (documentFile != null && documentFile.exists()) {
@@ -218,14 +244,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     // Get the persistent permission to the db file
-    private fun persistAccessPermission(uri: Uri) {
+    private fun persistAccessPermission(uri: Uri, path_name: String) {
         try {
             val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION
             contentResolver.takePersistableUriPermission(uri, takeFlags)
-            println("Persistable URI Permission taken successfully")
+            println("Persistable $uri Permission taken successfully")
 
             val sharedPreferences = getSharedPreferences("general_preference", Context.MODE_PRIVATE)
-            sharedPreferences.edit().putString("koreader_path", uri.toString()).apply()
+            sharedPreferences.edit().putString(path_name, uri.toString()).apply()
 
         } catch (e: SecurityException) {
             e.printStackTrace()
