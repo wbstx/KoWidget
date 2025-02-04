@@ -18,6 +18,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
+import java.nio.ByteBuffer
 import java.security.MessageDigest
 import java.util.Calendar
 
@@ -128,9 +129,9 @@ class KoReaderBookInfoDBHandler (
         partialMD5(uri)?.let {
             Log.d(
                 "BookInfo",
-                "MD5: $it, golden: cd3b2baf2872af1520a4b64eff0fe0dd"
+                "MD5: $it, golden: 50ea215e2749d6e22e25f582771592b6"
             )
-        } // Golden: cd3b2baf2872af1520a4b64eff0fe0dd
+        }
 
         cursor.use {
             if (it.moveToFirst()) {
@@ -185,43 +186,71 @@ class KoReaderBookInfoDBHandler (
         return null
     }
 
-    fun partialMD5(uri: Uri?): String? {
+    private fun partialMD5(uri: Uri?): String? {
         if (uri == null) return null
 
-        /*        try {*/
-        val contentResolver: ContentResolver = this.context.contentResolver
-        var fileDescriptor = contentResolver.openFileDescriptor(uri, "r") ?: return null
-        var fileInputStream = FileInputStream(fileDescriptor.fileDescriptor)
+        try {
+            val contentResolver: ContentResolver = this.context.contentResolver
+            var fileDescriptor = contentResolver.openFileDescriptor(uri, "r") ?: return null
+//            var fileInputStream = FileInputStream(fileDescriptor.fileDescriptor)
+            val md = MessageDigest.getInstance("MD5")
+            val step = 1024
+            val size = 1024
+            val buffer = ByteArray(size)
+            FileInputStream(fileDescriptor.fileDescriptor).use { fileInputStream ->
+                val channel = fileInputStream.channel
+                for (i in -1..10) {
+                    val position = (step shl (2 * i)).toLong()
+                    if (position >= channel.size()) continue
+                    try {
+                        channel.position(position)
+                        val bytesRead = channel.read(ByteBuffer.wrap(buffer, 0, size))
+                        if (bytesRead == -1) break
+                        md.update(buffer, 0, bytesRead)
 
-        val md = MessageDigest.getInstance("MD5")
-        val buffer = ByteArray(1024)
-        var bytesRead: Int
+//                        var totalRead = 0
+//                        while (totalRead < size) {
+//                            val bytesRead = channel.read(ByteBuffer.wrap(buffer, totalRead, size - totalRead))
+//                            if (bytesRead == -1) break
+//                            totalRead += bytesRead
+//                        }
+//                        if (totalRead > 0) {
+//                            md.update(buffer, 0, totalRead)
+//                        }
 
-        var position: Long = 0
-        val step = 1024
-        val size = 1024
-        for (i in -1..10) {
-            position = (step shl (2 * i)).toLong()
-
-            fileDescriptor = contentResolver.openFileDescriptor(uri, "r") ?: return null
-            fileInputStream = FileInputStream(fileDescriptor.fileDescriptor)
-            fileInputStream.skip(position)
-
-            val sample = ByteArray(size)
-            val bytesRead = fileInputStream.read(sample)
-
-            fileInputStream.close()
-
-            if (bytesRead == -1) {
-                break
+                    } catch (e: IOException) {
+                        break
+                    }
+                }
             }
 
-            md.update(sample, 0, bytesRead)
+//            for (i in -1..10) {
+//                position = (step shl (2 * i)).toLong()
+//
+//                fileDescriptor = contentResolver.openFileDescriptor(uri, "r") ?: return null
+//                fileInputStream = FileInputStream(fileDescriptor.fileDescriptor)
+//                fileInputStream.skip(position)
+//
+//                val sample = ByteArray(size)
+//                val bytesRead = fileInputStream.read(sample)
+//
+//                fileInputStream.close()
+//
+//                if (bytesRead == -1) {
+//                    break
+//                }
+//
+//                md.update(sample, 0, bytesRead)
+//
+//            }
 
+            val digest = md.digest()
+            return digest.joinToString("") { "%02x".format(it) }
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return null
         }
-
-        val digest = md.digest()
-        return digest.joinToString("") { "%02x".format(it) }
 
     }
 }
