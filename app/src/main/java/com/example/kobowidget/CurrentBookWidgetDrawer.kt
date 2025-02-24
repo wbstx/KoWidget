@@ -42,6 +42,7 @@ class CurrentBookWidgetDrawer (
         val currentBookCoverView = widgetView.findViewById<ImageView>(R.id.current_book_cover)
         val currentBookTitleView = widgetView.findViewById<TextView>(R.id.current_book_title)
         val currentBookAuthorView = widgetView.findViewById<TextView>(R.id.current_book_author)
+        val currentBookReadTimeView = widgetView.findViewById<TextView>(R.id.current_book_read_time)
 
         if (historyHandler != null && bookInfoDBHandler != null && statisticsHandler != null) {
             val currentBook = historyHandler.getCurrentReadingBook()
@@ -49,13 +50,29 @@ class CurrentBookWidgetDrawer (
                 val currentBookInfo =
                     bookInfoDBHandler.getBookInfoByFilename(currentBook.filename)
                 currentBookInfo?.let {
-                    Log.d("Current Book", "currentBookInfo ID")
-                    statisticsHandler.getBookStat(currentBookInfo.id)
                     currentBookCoverView.setImageBitmap(currentBookInfo.getCoverBitmap())
                     currentBookTitleView.text = currentBookInfo.title
                     currentBookAuthorView.text = currentBookInfo.authors
+
+                    val currentBookMD5 = currentBookInfo.md5!!
+                    val currentBookStatID = statisticsHandler.getBookStatID(currentBookInfo.title, currentBookInfo.authors, currentBookMD5)
+                    currentBookStatID?.let {
+                        Log.d("Bookinfo", "Current Book Stat ID is $currentBookStatID")
+                        val bookStat = statisticsHandler.getBookStatByStatID(currentBookStatID)
+                        bookStat?.let{
+                            currentBookReadTimeView.text = convertSecondsToHMS(bookStat.totalReadTime)
+                        }
+                    }
                 }
             }
         }
+    }
+
+    fun convertSecondsToHMS(seconds: Long): String {
+        val hours = seconds / 3600
+        val minutes = (seconds % 3600) / 60
+        val remainingSeconds = seconds % 60
+
+        return String.format("%02d:%02d:%02d", hours, minutes, remainingSeconds)
     }
 }

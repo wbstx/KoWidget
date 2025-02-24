@@ -125,13 +125,14 @@ class KoReaderBookInfoDBHandler (
             Uri.parse("content://com.android.externalstorage.documents/tree/primary%3ABooks"),
             file.name
         )
-        Log.d("BookInfo", "$uri")
-        partialMD5(uri)?.let {
-            Log.d(
-                "BookInfo",
-                "MD5: $it, golden: 50ea215e2749d6e22e25f582771592b6"
-            )
-        }
+
+//        Log.d("BookInfo", "$uri")
+//        partialMD5(uri)?.let {
+//            Log.d(
+//                "BookInfo",
+//                "MD5: $it, golden: 50ea215e2749d6e22e25f582771592b6"
+//            )
+//        }
 
         cursor.use {
             if (it.moveToFirst()) {
@@ -146,12 +147,14 @@ class KoReaderBookInfoDBHandler (
                     val coverData = cursor.getBlob(cursor.getColumnIndex("cover_bb_data"))
 
                     Log.d("BookInfo", "Find Book!: ID: $id, Title: $title")
+                    val md5 = partialMD5(uri)
                     // TODO: check None, especially book without cover
                     return BookInfo(
                         id,
                         Uri.parse(filePath),
                         title,
                         authors,
+                        md5,
                         coverWidth,
                         coverHeight,
                         coverBBType,
@@ -308,6 +311,7 @@ class BookInfo (
     val fileUri: Uri,
     val title: String,
     val authors: String,
+    val md5: String?,
     private val coverWidth: Int,
     private val coverHeight: Int,
     private val coverBBType: Int,

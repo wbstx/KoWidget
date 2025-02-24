@@ -162,7 +162,29 @@ class KoReadingStatisticsDBHandler (
     }
 
     @SuppressLint("Range")
-    fun getBookStat(bookId: Int): BookInfo? {
+    fun getBookStatID(title: String, authors: String, md5: String): Int? {
+        val getBookStatID = """
+        SELECT id
+        FROM   book
+        WHERE  title = ?
+          AND  authors = ?
+          AND  md5 = ?;
+            """.trimIndent()
+        val bookStatIDCursor = statisticsDataset.rawQuery(getBookStatID, arrayOf(title, authors, md5))
+        bookStatIDCursor.use {
+            if (bookStatIDCursor.moveToFirst()) {
+                val id = bookStatIDCursor.getInt(0)
+                Log.d("BookInfo","$title Book ID: $id")
+                return id
+            } else {
+                Log.d("BookInfo","$title ID not found")
+                return null
+            }
+        }
+    }
+
+    @SuppressLint("Range")
+    fun getBookStatByStatID(bookId: Int): BookStat? {
         val totalReadDaysSQL = """
             SELECT count(*)
             FROM   (
@@ -207,8 +229,13 @@ class KoReadingStatisticsDBHandler (
                 Log.d("BookInfo","Total Read Pages: $totalReadPages")
                 Log.d("BookInfo","First Open Time: $firstOpen")
                 Log.d("BookInfo","Last Page at Last Open Time: $lastPage")
+
+                return BookStat(
+                    totalTimeBook
+                )
             } else {
                 Log.d("BookInfo","No data found for book ID $bookId.")
+                return null
             }
         }
 
@@ -245,5 +272,9 @@ class KoReadingStatisticsDBHandler (
         val pages: Int,
         val durations: Long,
         val startTime: Long
+    )
+
+    data class BookStat(
+        val totalReadTime: Long
     )
 }
