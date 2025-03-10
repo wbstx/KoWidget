@@ -66,12 +66,6 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-//        setSupportActionBar(binding.toolbar)
-
-//        val navController = findNavController(R.id.nav_host_fragment_content_main)
-//        appBarConfiguration = AppBarConfiguration(navController.graph)
-//        setupActionBarWithNavController(navController, appBarConfiguration)
-
         loadPreference()
         updateWidgetPreview()
         setOptionsListeners(binding)
@@ -88,28 +82,6 @@ class MainActivity : AppCompatActivity() {
         binding.settingGeneralBooksPath.setOnClickListener{ view ->
             findBooksDirectory()
         }
-    }
-
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        menuInflater.inflate(R.menu.menu_main, menu)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        return when (item.itemId) {
-            R.id.action_settings -> true
-            else -> super.onOptionsItemSelected(item)
-        }
-    }
-
-    override fun onSupportNavigateUp(): Boolean {
-        val navController = findNavController(R.id.nav_host_fragment_content_main)
-        return navController.navigateUp(appBarConfiguration)
-                || super.onSupportNavigateUp()
     }
 
     private fun loadPreference() {
@@ -161,6 +133,7 @@ class MainActivity : AppCompatActivity() {
         settingBooksDirectoryPermissionLauncher.launch(intent)
     }
 
+    // Update the preview of the widget in the main page
     private fun updateWidgetPreview() {
         if (statisticsHandler != null) {
             val widgetContainer = findViewById<FrameLayout>(R.id.widgetContainer)
@@ -209,13 +182,14 @@ class MainActivity : AppCompatActivity() {
         val historyPath =
             getDocumentUriInFolder(koreaderUri, "history.lua")
 
+        val sharedPreferences =
+            getSharedPreferences("general_preference", Context.MODE_PRIVATE)
+        val editor = sharedPreferences.edit()
+
         koReaderStatisticsDBPath?.let {
             statisticsHandler =
                 KoReadingStatisticsDBHandler(this, koReaderStatisticsDBPath)
 
-            val sharedPreferences =
-                getSharedPreferences("general_preference", Context.MODE_PRIVATE)
-            val editor = sharedPreferences.edit()
             editor.putString("reading_statistics_db_path", koReaderStatisticsDBPath.toString())
             editor.apply()
         }
@@ -224,20 +198,15 @@ class MainActivity : AppCompatActivity() {
             bookInfoDBHandler =
                 KoReaderBookInfoDBHandler(this, koReaderBookInfoDBPath)
 
-            val sharedPreferences =
-                getSharedPreferences("general_preference", Context.MODE_PRIVATE)
-            val editor = sharedPreferences.edit()
             editor.putString("bookinfo_db_path", koReaderBookInfoDBPath.toString())
             editor.apply()
-
-            val bookCover = bookInfoDBHandler!!.printAllBook()
-            bookCover?.let {
-                Log.d("Bookinfo", "Setting Image Bitmap")
-            }
         }
 
         historyPath?.let {
             historyHandler = KoReaderHistoryHandler(this, historyPath)
+
+            editor.putString("history_path", historyPath.toString())
+            editor.apply()
         }
 
         return arrayOf(koReaderStatisticsDBPath, koReaderBookInfoDBPath, historyPath)

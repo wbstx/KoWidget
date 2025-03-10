@@ -32,7 +32,6 @@ class KoReaderHistoryHandler (
 
     private fun readBookHistory(historyUri: Uri) {
         try {
-            // 使用 ContentResolver 打开 URI 并读取内容
             val fileContent = context.contentResolver.openInputStream(historyUri)?.bufferedReader()?.use { it.readText() }
                 ?: throw IllegalArgumentException("Cannot open URI: $historyUri")
 

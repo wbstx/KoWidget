@@ -26,7 +26,28 @@ class CurrentBookWidgetDrawer (
     override fun drawContentRemote(
         widgetViews: RemoteViews
     ) {
+        if (historyHandler != null && bookInfoDBHandler != null && statisticsHandler != null) {
+            val currentBook = historyHandler.getCurrentReadingBook()
+            currentBook?.let {
+                val currentBookInfo =
+                    bookInfoDBHandler.getBookInfoByFilename(currentBook.filename)
+                currentBookInfo?.let {
+                    widgetViews.setImageViewBitmap(R.id.current_book_cover, currentBookInfo.getCoverBitmap())
+                    widgetViews.setTextViewText(R.id.current_book_title, currentBookInfo.title)
+                    widgetViews.setTextViewText(R.id.current_book_author, currentBookInfo.authors)
 
+//                    val currentBookMD5 = currentBookInfo.md5!!
+//                    val currentBookStatID = statisticsHandler.getBookStatID(currentBookInfo.title, currentBookInfo.authors, currentBookMD5)
+//                    currentBookStatID?.let {
+//                        Log.d("Bookinfo", "Current Book Stat ID is $currentBookStatID")
+//                        val bookStat = statisticsHandler.getBookStatByStatID(currentBookStatID)
+//                        bookStat?.let{
+//                            currentBookReadTimeView.text = convertSecondsToHMS(bookStat.totalReadTime)
+//                        }
+//                    }
+                }
+            }
+        }
     }
 
     override fun getWidgetViewMain(): LinearLayout {
@@ -38,7 +59,6 @@ class CurrentBookWidgetDrawer (
     override fun drawContentMain(
         widgetView: LinearLayout
     ) {
-        val inflater = LayoutInflater.from(context)
         val currentBookCoverView = widgetView.findViewById<ImageView>(R.id.current_book_cover)
         val currentBookTitleView = widgetView.findViewById<TextView>(R.id.current_book_title)
         val currentBookAuthorView = widgetView.findViewById<TextView>(R.id.current_book_author)

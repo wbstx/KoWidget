@@ -81,25 +81,6 @@ class KoReaderBookInfoDBHandler (
                 val coverData = cursor.getBlob(cursor.getColumnIndex("cover_bb_data"))
 
                 Log.d("BookInfo", "ID: $id, Title: $title, Cover Width: $coverWidth")
-                if (title == "饮啜尸汁") {
-                    Log.d(
-                        "BookInfo", "Title: $title, Cover Width: $coverWidth," +
-                                " Cover Height: $coverHeight, Cover Data Size: ${coverData.size}"
-                    )
-                    val decompressedData: ByteArray =
-                        Zstd.decompress(coverData, coverData.size * 10)
-                    Log.d(
-                        "BookInfo",
-                        "decompressedData ${decompressedData.size} ${coverStride * coverHeight}"
-                    )
-
-//                    if (decompressedData != null){
-////                        val bitmap: Bitmap = BitmapFactory.decodeByteArray(decompressedData, 0, decompressedData.size)
-//                        val bitmap = byteArrayToBitmapRGB(decompressedData, coverWidth, coverHeight)
-//                        return bitmap
-//                    }
-
-                }
             } while (cursor.moveToNext())
         }
         cursor.close()
@@ -125,14 +106,6 @@ class KoReaderBookInfoDBHandler (
             Uri.parse("content://com.android.externalstorage.documents/tree/primary%3ABooks"),
             file.name
         )
-
-//        Log.d("BookInfo", "$uri")
-//        partialMD5(uri)?.let {
-//            Log.d(
-//                "BookInfo",
-//                "MD5: $it, golden: 50ea215e2749d6e22e25f582771592b6"
-//            )
-//        }
 
         cursor.use {
             if (it.moveToFirst()) {
@@ -210,17 +183,6 @@ class KoReaderBookInfoDBHandler (
                         val bytesRead = channel.read(ByteBuffer.wrap(buffer, 0, size))
                         if (bytesRead == -1) break
                         md.update(buffer, 0, bytesRead)
-
-//                        var totalRead = 0
-//                        while (totalRead < size) {
-//                            val bytesRead = channel.read(ByteBuffer.wrap(buffer, totalRead, size - totalRead))
-//                            if (bytesRead == -1) break
-//                            totalRead += bytesRead
-//                        }
-//                        if (totalRead > 0) {
-//                            md.update(buffer, 0, totalRead)
-//                        }
-
                     } catch (e: IOException) {
                         break
                     }

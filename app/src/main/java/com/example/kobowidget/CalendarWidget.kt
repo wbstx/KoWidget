@@ -55,7 +55,6 @@ class CalendarWidget : AppWidgetProvider() {
         super.onReceive(context, intent)
 
         if (intent.action == ACTION_UPDATE_CALENDAR) {
-            Log.d("Calendar", "onReceive update calendar")
             updateCalendar(context)
         }
     }
@@ -70,16 +69,12 @@ class CalendarWidget : AppWidgetProvider() {
             context.getSharedPreferences("general_preference", Context.MODE_PRIVATE)
         val koReadingStatisticsDBPath =
             sharedPreferences.getString("reading_statistics_db_path", null)
-        Log.d("calendar widget", "$koReadingStatisticsDBPath")
 
         koReadingStatisticsDBPath.let {
             try {
                 statisticsHandler =
                     KoReadingStatisticsDBHandler(context, Uri.parse(koReadingStatisticsDBPath))
-            } catch (e: Exception) {
-                println("Error accessing Koreader Statistics DB file ${koReadingStatisticsDBPath}: ${e.message}")
-            }
-            if (statisticsHandler != null) {
+
                 calendarDrawer = CalendarWidgetDrawer(context, statisticsHandler)
                 val widgetViews = calendarDrawer.getWidgetViewRemote()
                 calendarDrawer.drawContentRemote(widgetViews)
@@ -92,6 +87,9 @@ class CalendarWidget : AppWidgetProvider() {
                 widgetViews.setOnClickPendingIntent(R.id.calendar_days_layout, pendingIntent)
                 // Update the widget
                 appWidgetManager.updateAppWidget(componentName, widgetViews)
+
+            } catch (e: Exception) {
+                println("Error accessing Koreader Statistics DB file ${koReadingStatisticsDBPath}: ${e.message}")
             }
         }
     }
@@ -102,19 +100,19 @@ class CalendarWidget : AppWidgetProvider() {
     ) = RemoteViews(context.packageName, layoutId)
 }
 
-internal fun updateAppWidget(
-    context: Context,
-    appWidgetManager: AppWidgetManager,
-    appWidgetId: Int
-) {
-    val widgetText = context.getString(R.string.appwidget_text)
-    // Construct the RemoteViews object
-    val views = RemoteViews(context.packageName, R.layout.widget_calendar)
-//    views.setTextViewText(R.id.appwidget_text, widgetText)
-
-    val childRemoteViews = RemoteViews(context.packageName, R.layout.widget_component_calendar_day_board)
-    views.addView(R.id.calendar_days_layout, childRemoteViews)
-
-    // Instruct the widget manager to update the widget
-    appWidgetManager.updateAppWidget(appWidgetId, views)
-}
+//internal fun updateAppWidget(
+//    context: Context,
+//    appWidgetManager: AppWidgetManager,
+//    appWidgetId: Int
+//) {
+//    val widgetText = context.getString(R.string.appwidget_text)
+//    // Construct the RemoteViews object
+//    val views = RemoteViews(context.packageName, R.layout.widget_calendar)
+////    views.setTextViewText(R.id.appwidget_text, widgetText)
+//
+//    val childRemoteViews = RemoteViews(context.packageName, R.layout.widget_component_calendar_day_board)
+//    views.addView(R.id.calendar_days_layout, childRemoteViews)
+//
+//    // Instruct the widget manager to update the widget
+//    appWidgetManager.updateAppWidget(appWidgetId, views)
+//}
